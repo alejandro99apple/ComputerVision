@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt, QTimer
 from numpy.fft import fft2, ifft2, fftshift, ifftshift
 from PyQt5.QtGui import QIcon
+from scipy.signal import convolve2d
 import vtk
 from vtkmodules.util import numpy_support
 from vtkmodules.vtkCommonDataModel import vtkImageData
@@ -431,7 +432,7 @@ class DICOMViewer(QMainWindow):
             self.frequency_input.setValue(1.0)
         else:
             self.frequency_input_label.setText("Factor de borde:")
-            self.frequency_input.setRange(0.1, 1.0)
+            self.frequency_input.setRange(0.1, 5.0)
             self.frequency_input.setValue(1.0)
 
     def create_spatial_domain_filter_group(self, parent_layout):
@@ -472,14 +473,37 @@ class DICOMViewer(QMainWindow):
 
         layout.addLayout(row_layout)
 
+        # Fila 2: Ventana y Tamaño del Kernel
+        row2_layout = QHBoxLayout()
+        self.spatial_window_combo = QComboBox()
+        self.spatial_window_combo.addItems(["Media"])  # Inicialmente solo "Media"
+        row2_layout.addWidget(QLabel("Ventana:"))
+        row2_layout.addWidget(self.spatial_window_combo)
+
+        self.kernel_size_input = QSpinBox()
+        self.kernel_size_input.setRange(3, 7)
+        self.kernel_size_input.setValue(3)
+        self.kernel_size_input.setSingleStep(2)  # Solo valores impares
+        self.kernel_size_input.setEnabled(False)  # Solo habilitado para Pasa Bajas
+        row2_layout.addWidget(QLabel("Tamaño del Kernel:"))
+        row2_layout.addWidget(self.kernel_size_input)
+
+        layout.addLayout(row2_layout)
+
         parent_layout.addWidget(container)
 
     def update_spatial_input_label(self):
-        """Actualiza la etiqueta del input según el tipo de filtro seleccionado"""
+        """Actualiza la etiqueta del input y las opciones según el tipo de filtro seleccionado"""
         if self.spatial_type_combo.currentText() == "Pasa Bajas":
             self.spatial_input_label.setText("Factor de ruido:")
+            self.spatial_window_combo.clear()
+            self.spatial_window_combo.addItems(["Media"])
+            self.kernel_size_input.setEnabled(True)
         else:
             self.spatial_input_label.setText("Factor de borde:")
+            self.spatial_window_combo.clear()
+            self.spatial_window_combo.addItems(["Sobel-X","Sobel-Y", "Prewitt-X","Prewitt-Y", "Laplace"])
+            self.kernel_size_input.setEnabled(False)
 
     def update_filter_controls(self):
         """Habilita solo los controles correspondientes al RadioButton seleccionado"""
@@ -495,6 +519,8 @@ class DICOMViewer(QMainWindow):
         # Habilitar/deshabilitar inputs del Dominio Espacial
         self.spatial_type_combo.setEnabled(is_spatial_selected)
         self.spatial_input.setEnabled(is_spatial_selected)
+        self.spatial_window_combo.setEnabled(is_spatial_selected)
+        self.kernel_size_input.setEnabled(is_spatial_selected and self.spatial_type_combo.currentText() == "Pasa Bajas")
 
     def create_transform_inputs(self, transform_layout):
         """Crea los grupos de opciones con estilo de secciones diferenciadas"""
@@ -1830,13 +1856,77 @@ class DICOMViewer(QMainWindow):
         # Mostrar resultados
         self.display_transformed_slices()
 
+    def apply_spatial_filter_to_current_image(self):
+        """Aplica el filtro espacial a la imagen actual según los parámetros seleccionados."""
+        if self.images is None:
+            QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para filtrar.")
+            return
+        
+        
+        # Obtener slices actuales
+        current_axial = self.images[self.current_axial, :, :].copy()
+        current_sagittal = self.prepare_sagittal_slice(self.images[:, :, self.current_sagittal])
+        current_coronal = self.prepare_coronal_slice(self.images[:, self.current_coronal, :])
+
+        
+        def apply_spatial_filter(image, filter_type, filter_name, factor=1.0, kernel_size=3):
+
+
+            if filter_type == "low":
+                kernel_size = self.kernel_size_input.value()
+                kernel = np.ones((kernel_size, kernel_size), dtype=np.float32) / (kernel_size ** 2)
+
+            elif filter_type == "high":
+                kernels = {
+                    "Sobel-X":   np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]),
+                    "Sobel-Y":   np.array([[ 1, 2, 1], [ 0, 0, 0], [-1,-2,-1]]),
+                    "Prewitt-X": np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]]),
+                    "Prewitt-Y": np.array([[ 1, 1, 1], [ 0, 0, 0], [-1,-1,-1]]),
+                    "Laplace":   np.array([[ 0, 1, 0], [ 1,-4, 1], [ 0, 1, 0]]),
+                }
+
+                if filter_name not in kernels:
+                    raise ValueError(f"Filtro no reconocido: {filter_name}")
+                kernel = kernels[filter_name]
+
+            else:
+                raise ValueError("Tipo de filtro inválido (usa 'low' o 'high')")
+
+            # Convolución
+            filtered = convolve2d(image, kernel, mode='same', boundary='symm')
+
+            # Aplicar factor
+            if filter_type == "low":
+                filtered = filtered ** factor
+            else:
+                filtered = filtered * factor
+
+            return filtered
+        
+
+        #Obtener parámetros del filtro
+        filter_name = self.spatial_window_combo.currentText()
+        filter_type = "low" if self.spatial_type_combo.currentText() == "Pasa Bajas" else "high"
+        kernel_size = self.kernel_size_input.value()
+        factor = self.spatial_input.value()
+        
+        self.transformed_axial = apply_spatial_filter(current_axial, filter_type, filter_name, factor, kernel_size)
+        self.transformed_sagittal = apply_spatial_filter(current_sagittal, filter_type, filter_name, factor, kernel_size)
+        self.transformed_coronal = apply_spatial_filter(current_coronal, filter_type, filter_name, factor, kernel_size)
+
+        # Mostrar resultados
+        self.display_transformed_slices()
+        
+        return
+
+        
+
     def apply_filters(self):
         """Ejecuta las funciones de filtrado espacial y frecuencial según las opciones seleccionadas."""
         if self.frequency_domain_rb.isChecked():
             self.apply_frequency_filter_to_current_image()
         elif self.spatial_domain_rb.isChecked():
-            # Aquí puedes implementar la función para aplicar el filtrado espacial
-            QMessageBox.information(self, "Filtrado Espacial", "Función de filtrado espacial no implementada.")
+            self.apply_spatial_filter_to_current_image()
 
     #=====================================================================================================
 
@@ -1846,6 +1936,7 @@ if __name__ == "__main__":
     viewer = DICOMViewer()
     viewer.show()
     sys.exit(app.exec_())
+
 
 
 
