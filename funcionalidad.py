@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QSlider, QFileDialog, QMessageBox, QSizePolicy,
                             QFrame, QRadioButton, QButtonGroup, QLineEdit, QDoubleSpinBox, QComboBox, QSpinBox, QCheckBox)
 from PyQt5.QtCore import Qt, QTimer
+from numpy.fft import fft2, ifft2, fftshift, ifftshift
 from PyQt5.QtGui import QIcon
 import vtk
 from vtkmodules.util import numpy_support
@@ -167,26 +168,48 @@ class DICOMViewer(QMainWindow):
         self.filter_container = QWidget()
         filter_layout = QVBoxLayout()
         filter_layout.setContentsMargins(0, 0, 0, 0)
-        filter_layout.setSpacing(5)
+        filter_layout.setSpacing(10)  # Espaciado entre grupos
         self.filter_container.setLayout(filter_layout)
         
         filter_title = QLabel("Opciones de Filtrado:")
         filter_title.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         filter_title.setStyleSheet("font-weight: bold; margin-bottom: 5px;")
         filter_layout.addWidget(filter_title)
-        
-        options = ["Dominio Frecuencial", "Dominio Espacial"]
-        for opt in options:
-            rb = QRadioButton(opt)
-            rb.setStyleSheet("text-align: left; padding: 3px;")
-            filter_layout.addWidget(rb, alignment=Qt.AlignTop)
-            self.filter_options.addButton(rb)
-        
-        if self.filter_options.buttons():
-            self.filter_options.buttons()[0].setChecked(True)
-        
-        main_options_layout.addWidget(self.filter_container, alignment=Qt.AlignTop)
+
+        # Grupo de botones para dominios
+        self.filter_options = QButtonGroup()
+        self.create_frequency_domain_filter_group(filter_layout)
+        self.create_spatial_domain_filter_group(filter_layout)
+
+        # Botón APLICAR para ejecutar ambas funciones de filtrado
+        self.apply_filter_btn = QPushButton("APLICAR")
+        self.apply_filter_btn.setFixedSize(150, 30)
+        self.apply_filter_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        self.apply_filter_btn.clicked.connect(self.apply_filters)  # Conectar señal
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(self.apply_filter_btn)
+        button_layout.addStretch()
+        filter_layout.addLayout(button_layout)
+
+        # Añadir al contenedor principal
+        self.main_options_container.layout().addWidget(self.filter_container, alignment=Qt.AlignTop)
         self.filter_container.hide()
+
+        # Conectar señales para habilitar/deshabilitar inputs
+        self.filter_options.buttonClicked.connect(self.update_filter_controls)
+        self.update_filter_controls()  # Actualizar inputs según el botón seleccionado por defecto
 
         # Contenedor para resolución (definimos el layout primero)
         self.resolution_container = QWidget()
@@ -341,7 +364,138 @@ class DICOMViewer(QMainWindow):
         self.options2_layout.addWidget(self.main_options_container)
         self.options2_layout.addStretch()
 
-    
+    def create_frequency_domain_filter_group(self, parent_layout):
+        """Grupo para Filtrado en el Dominio Frecuencial"""
+        container = QFrame()
+        container.setFrameShape(QFrame.StyledPanel)
+        container.setStyleSheet("""
+            QFrame {
+                border-radius: 5px;
+                border: 1px solid #ddd;
+            }
+        """)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        # RadioButton
+        self.frequency_domain_rb = QRadioButton("Dominio Frecuencial")
+        self.frequency_domain_rb.setStyleSheet("font-weight: bold;")
+        self.frequency_domain_rb.setChecked(True)  # Seleccionar por defecto
+        self.filter_options.addButton(self.frequency_domain_rb)
+        layout.addWidget(self.frequency_domain_rb)
+
+        # Primera fila: Tipo y Factor de borde
+        row1_layout = QHBoxLayout()
+        self.frequency_type_combo = QComboBox()
+        self.frequency_type_combo.addItems(["Pasa Bajas", "Pasa Altas"])
+        self.frequency_type_combo.currentTextChanged.connect(self.update_frequency_input_label)  # Conectar señal
+        row1_layout.addWidget(QLabel("Tipo:"))
+        row1_layout.addWidget(self.frequency_type_combo)
+
+        self.frequency_input_label = QLabel("Factor de ruido:")  # Etiqueta dinámica
+        self.frequency_input = QDoubleSpinBox()
+        self.frequency_input.setRange(0.5, 5.0)
+        self.frequency_input.setValue(1.0)
+        self.frequency_input.setSingleStep(0.1)
+        self.frequency_input.setEnabled(False)
+        row1_layout.addWidget(self.frequency_input_label)
+        row1_layout.addWidget(self.frequency_input)
+
+        layout.addLayout(row1_layout)
+
+        # Segunda fila: Ventana y Dimensión del radio
+        row2_layout = QHBoxLayout()
+        self.frequency_window_combo = QComboBox()
+        self.frequency_window_combo.addItems(["Gaussiana","Gaussiana Mod", "Coseno", "Barlett", "Hanning"])
+        self.frequency_window_combo.setEnabled(False)
+        row2_layout.addWidget(QLabel("Ventana:"))
+        row2_layout.addWidget(self.frequency_window_combo)
+
+        self.frequency_radius_dimension_input = QDoubleSpinBox()
+        self.frequency_radius_dimension_input.setRange(0.1, 0.9)
+        self.frequency_radius_dimension_input.setValue(0.1)
+        self.frequency_radius_dimension_input.setSingleStep(0.1)
+        self.frequency_radius_dimension_input.setEnabled(False)
+        row2_layout.addWidget(QLabel("Dimensión del radio:"))
+        row2_layout.addWidget(self.frequency_radius_dimension_input)
+
+        layout.addLayout(row2_layout)
+
+        parent_layout.addWidget(container)
+
+    def update_frequency_input_label(self):
+        """Actualiza la etiqueta del input según el tipo de filtro seleccionado"""
+        if self.frequency_type_combo.currentText() == "Pasa Bajas":
+            self.frequency_input_label.setText("Factor de ruido:")
+            self.frequency_input.setRange(0.5, 5.0)
+            self.frequency_input.setValue(1.0)
+        else:
+            self.frequency_input_label.setText("Factor de borde:")
+            self.frequency_input.setRange(0.1, 1.0)
+            self.frequency_input.setValue(1.0)
+
+    def create_spatial_domain_filter_group(self, parent_layout):
+        """Grupo para Filtrado en el Dominio Espacial"""
+        container = QFrame()
+        container.setFrameShape(QFrame.StyledPanel)
+        container.setStyleSheet("""
+            QFrame {
+                border-radius: 5px;
+                border: 1px solid #ddd;
+            }
+        """)
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        # RadioButton
+        self.spatial_domain_rb = QRadioButton("Dominio Espacial")
+        self.spatial_domain_rb.setStyleSheet("font-weight: bold;")
+        self.filter_options.addButton(self.spatial_domain_rb)
+        layout.addWidget(self.spatial_domain_rb)
+
+        # Fila: Tipo y Factor de ruido
+        row_layout = QHBoxLayout()
+        self.spatial_type_combo = QComboBox()
+        self.spatial_type_combo.addItems(["Pasa Bajas", "Pasa Altas"])
+        self.spatial_type_combo.currentTextChanged.connect(self.update_spatial_input_label)  # Conectar señal
+        row_layout.addWidget(QLabel("Tipo:"))
+        row_layout.addWidget(self.spatial_type_combo)
+
+        self.spatial_input_label = QLabel("Factor de ruido:")  # Etiqueta dinámica
+        self.spatial_input = QDoubleSpinBox()
+        self.spatial_input.setRange(0.1, 0.9)
+        self.spatial_input.setValue(0.1)
+        self.spatial_input.setSingleStep(0.1)
+        self.spatial_input.setEnabled(False)
+        row_layout.addWidget(self.spatial_input_label)
+        row_layout.addWidget(self.spatial_input)
+
+        layout.addLayout(row_layout)
+
+        parent_layout.addWidget(container)
+
+    def update_spatial_input_label(self):
+        """Actualiza la etiqueta del input según el tipo de filtro seleccionado"""
+        if self.spatial_type_combo.currentText() == "Pasa Bajas":
+            self.spatial_input_label.setText("Factor de ruido:")
+        else:
+            self.spatial_input_label.setText("Factor de borde:")
+
+    def update_filter_controls(self):
+        """Habilita solo los controles correspondientes al RadioButton seleccionado"""
+        is_frequency_selected = self.frequency_domain_rb.isChecked()
+        is_spatial_selected = self.spatial_domain_rb.isChecked()
+
+        # Habilitar/deshabilitar inputs del Dominio Frecuencial
+        self.frequency_type_combo.setEnabled(is_frequency_selected)
+        self.frequency_input.setEnabled(is_frequency_selected)
+        self.frequency_window_combo.setEnabled(is_frequency_selected)
+        self.frequency_radius_dimension_input.setEnabled(is_frequency_selected)
+
+        # Habilitar/deshabilitar inputs del Dominio Espacial
+        self.spatial_type_combo.setEnabled(is_spatial_selected)
+        self.spatial_input.setEnabled(is_spatial_selected)
+
     def create_transform_inputs(self, transform_layout):
         """Crea los grupos de opciones con estilo de secciones diferenciadas"""
         # Contenedor principal
@@ -1593,9 +1747,106 @@ class DICOMViewer(QMainWindow):
     
     #=====================================================================================================
 
+    #==========================================MODIFICAION DE RESOLUCION==================================
+    # Implementación de filtrado frecuencial
+
+    def apply_frequency_filter_to_current_image(self):
+        """Aplica el filtro frecuencial a la imagen actual según los parámetros seleccionados."""
+        if self.images is None:
+            QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para filtrar.")
+            return
+        
+
+        # Obtener slices actuales
+        current_axial = self.images[self.current_axial, :, :].copy()
+        current_sagittal = self.prepare_sagittal_slice(self.images[:, :, self.current_sagittal])
+        current_coronal = self.prepare_coronal_slice(self.images[:, self.current_coronal, :])
+
+
+        # Obtener parámetros del filtro
+        filter_name = self.frequency_window_combo.currentText()
+        filter_type = "low" if self.frequency_type_combo.currentText() == "Pasa Bajas" else "high"
+        sigma = self.frequency_radius_dimension_input.value()
+
+
+        def apply_frequency_filter(image, filter_type, filter_name, sigma, K=0.0001, n=2):
+            K = sigma
+            n = 2
+            border_factor = self.frequency_input.value()
+            M, N = image.shape
+            #H = np.zeros((M, N))
+            H = np.full((M, N), self.borders[0], dtype=np.float32)
+
+            for h in range(M):
+                dx = (h - M / 2) / (M / 2)
+                for k in range(N):
+                    dy = (k - N / 2) / (N / 2)
+                    dxy = np.sqrt(dx**2 + dy**2)
+
+                    if filter_name == "Coseno":
+                        if abs(dx) < sigma and abs(dy) < sigma:
+                            H[h, k] = np.cos((np.pi * dx) / (2 * sigma)) * np.cos((np.pi * dy) / (2 * sigma))
+                    elif filter_name == "Gaussiana Mod":
+                        H[h, k] = np.exp(-(dxy**n) / K)
+                    elif filter_name == "Barlett":
+                        if 0 <= dxy / sigma <= 1:
+                            H[h, k] = 1 - (dxy / sigma)
+                    elif filter_name == "Hanning":
+                        if dxy / sigma < np.pi and dxy < sigma:
+                            H[h, k] = 0.5 * (np.cos((np.pi * dxy) / sigma) + 1)
+                    elif filter_name == "Gaussiana":
+                        H[h, k] = np.exp(-(dxy**2) / (2 * sigma**2))
+                    else:
+                        raise ValueError(f"Filtro '{filter_name}' no reconocido.")
+
+            if filter_type == "high":
+                H = 1 - H
+                H *= border_factor
+
+            else:
+                H = H ** border_factor
+                
+
+            return H
+        
+        def filter_image(image, H):
+            F = fftshift(fft2(image))
+            G = F * H
+            img_filtered = np.real(ifft2(ifftshift(G)))
+            return img_filtered
+
+
+        # Aplicar el filtro
+        transformed_axial = apply_frequency_filter(current_axial, filter_type,filter_name, sigma)
+        transformed_sagittal = apply_frequency_filter(current_sagittal, filter_type,filter_name, sigma)
+        transformed_coronal = apply_frequency_filter(current_coronal, filter_type,filter_name, sigma)
+
+        self.transformed_axial = filter_image(current_axial, transformed_axial)
+        self.transformed_sagittal = filter_image(current_sagittal, transformed_sagittal)
+        self.transformed_coronal = filter_image(current_coronal, transformed_coronal)
+
+
+
+        # Mostrar resultados
+        self.display_transformed_slices()
+
+    def apply_filters(self):
+        """Ejecuta las funciones de filtrado espacial y frecuencial según las opciones seleccionadas."""
+        if self.frequency_domain_rb.isChecked():
+            self.apply_frequency_filter_to_current_image()
+        elif self.spatial_domain_rb.isChecked():
+            # Aquí puedes implementar la función para aplicar el filtrado espacial
+            QMessageBox.information(self, "Filtrado Espacial", "Función de filtrado espacial no implementada.")
+
+    #=====================================================================================================
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     viewer = DICOMViewer()
     viewer.show()
     sys.exit(app.exec_())
+
+
+
 
