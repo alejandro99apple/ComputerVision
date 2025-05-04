@@ -7,12 +7,15 @@ import cv2
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QGridLayout, QPushButton, QLabel, 
                             QSlider, QFileDialog, QMessageBox, QSizePolicy,
-                            QFrame, QRadioButton, QButtonGroup, QLineEdit, QDoubleSpinBox, QComboBox, QSpinBox, QCheckBox)
+                            QFrame, QRadioButton, QButtonGroup, QLineEdit, QDoubleSpinBox, QComboBox, QSpinBox, QCheckBox, QTableWidget)
 from PyQt5.QtCore import Qt, QTimer
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from numpy.fft import fft2, ifft2, fftshift, ifftshift
 from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QHeaderView
 from scipy.signal import convolve2d
 import vtk
+from PyQt5.QtWidgets import QTableWidgetItem
 from vtkmodules.util import numpy_support
 from vtkmodules.vtkCommonDataModel import vtkImageData
 from vtkmodules.vtkRenderingCore import (vtkRenderer, vtkRenderWindow, 
@@ -278,12 +281,18 @@ class DICOMViewer(QMainWindow):
         spatial_layout.setSpacing(8)  # Un poco más de espacio entre elementos
         self.spatial_improvement_container.setLayout(spatial_layout)
 
+        # Título de la sección
+        spatial_title = QLabel("Opciones de Mejoramiento Espacial:")
+        spatial_title.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        spatial_title.setStyleSheet("font-weight: bold; margin-bottom: 5px;")
+        spatial_layout.addWidget(spatial_title)
+
         # Input: Ancho de la función de dispersión
         dispersion_label = QLabel("Ancho de la función de dispersión:")
         self.dispersion_width_input = QDoubleSpinBox()
-        self.dispersion_width_input.setRange(0.1, 10.0)
-        self.dispersion_width_input.setSingleStep(0.1)
-        self.dispersion_width_input.setValue(1.0)
+        self.dispersion_width_input.setRange(5.0, 10.0)
+        self.dispersion_width_input.setSingleStep(1)
+        self.dispersion_width_input.setValue(5.0)
         self.dispersion_width_input.setStyleSheet("""
             QDoubleSpinBox {
                 padding: 5px;
@@ -310,6 +319,9 @@ class DICOMViewer(QMainWindow):
                 background-color: #45a049;
             }
         """)
+
+            # Conectar el botón APLICAR de mejoramiento espacial
+        self.apply_button.clicked.connect(self.apply_spatial_improvement)
         
         # Contenedor para centrar el botón
         button_container = QWidget()
@@ -336,7 +348,60 @@ class DICOMViewer(QMainWindow):
         
         spatial_layout.addWidget(visualization_label)
         spatial_layout.addWidget(self.visualization_combo)
-        
+
+        # Tabla de métricas
+        self.metrics_table = QTableWidget(12, 3)  # Cambiar a 3 columnas
+        self.metrics_table.setHorizontalHeaderLabels(["CLS", "WCLS", "BMR"])
+        self.metrics_table.setVerticalHeaderLabels([
+            "PSNR Axial (dB)", "IOSNR Axial (dB)", "MAE Axial", "SSIM Axial",
+            "PSNR Sagital (dB)", "IOSNR Sagital (dB)", "MAE Sagital", "SSIM Sagital",
+            "PSNR Coronal (dB)", "IOSNR Coronal (dB)", "MAE Coronal", "SSIM Coronal", ""
+        ])
+        self.metrics_table.setEditTriggers(QTableWidget.NoEditTriggers)  # Deshabilitar edición
+        self.metrics_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)  # Expandir verticalmente
+        self.metrics_table.setFixedHeight(self.metrics_table.verticalHeader().length() + self.metrics_table.horizontalHeader().height())
+        self.metrics_table.horizontalHeader().setStretchLastSection(True)  # Ajustar última columna
+        self.metrics_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # Expandir columnas
+        self.metrics_table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)  # Expandir filas
+
+        # Aplicar estilo y margen superior
+        self.metrics_table.setStyleSheet("""
+            QTableWidget {
+                margin-top: 20px;  /* Margen superior */
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                background-color: #f9f9f9;
+                gridline-color: #ddd;
+            }
+            QHeaderView::section {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                border: 1px solid #ddd;
+                padding: 4px;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #d0e7ff;
+                color: #000;
+            }
+        """)
+
+        # Aplicar estilo a la celda superior izquierda de los encabezados
+        self.metrics_table.setCornerButtonEnabled(False)  # Deshabilitar el botón de esquina
+        corner_widget = self.metrics_table.findChild(QHeaderView, "")
+        if corner_widget:
+            corner_widget.setStyleSheet("""
+                QHeaderView::section {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                    border: 1px solid #ddd;
+                }
+            """)
+
+        spatial_layout.addWidget(self.metrics_table)
+
         # Añadir al contenedor principal
         main_options_layout.addWidget(self.spatial_improvement_container, alignment=Qt.AlignTop)
         self.spatial_improvement_container.hide()  # Ocultar inicialmente
@@ -364,6 +429,31 @@ class DICOMViewer(QMainWindow):
         # Añadir el contenedor principal al layout de opciones 2
         self.options2_layout.addWidget(self.main_options_container)
         self.options2_layout.addStretch()
+
+        # Conectar el ComboBox de visualización a la nueva función
+        self.visualization_combo.currentTextChanged.connect(self.actualizar_visualizacion)
+
+    def actualizar_visualizacion(self, metodo):
+        """Actualiza la visualización según el método seleccionado en el ComboBox."""
+        if metodo == "CLS":
+            self.transformed_axial = self.cls_axial
+            self.transformed_sagittal = self.cls_sagital
+            self.transformed_coronal = self.cls_coronal
+        elif metodo == "WCLS":
+            self.transformed_axial = self.wcls_axial
+            self.transformed_sagittal = self.wcls_sagital
+            self.transformed_coronal = self.wcls_coronal
+        elif metodo == "BMR":
+            self.transformed_axial = self.bmr_axial
+            self.transformed_sagittal = self.bmr_sagital
+            self.transformed_coronal = self.bmr_coronal
+        else:
+            self.transformed_axial = self.images[self.current_axial, :, :]
+            self.transformed_sagittal = self.prepare_sagittal_slice(self.images[:, :, self.current_sagittal])
+            self.transformed_coronal = self.prepare_coronal_slice(self.images[:, self.current_coronal, :])
+
+        # Mostrar los resultados actualizados
+        self.display_transformed_slices()
 
     def create_frequency_domain_filter_group(self, parent_layout):
         """Grupo para Filtrado en el Dominio Frecuencial"""
@@ -1930,14 +2020,191 @@ class DICOMViewer(QMainWindow):
 
     #=====================================================================================================
 
+    #==========================================MEJORAMIENTO ESPACIAL======================================
+
+    def apply_spatial_improvement(self):
+        """Aplica el mejoramiento espacial a las imágenes visibles."""
+        if self.images is None:
+            QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para mejorar.")
+            return
+
+        # Obtener parámetros de entrada
+        dispersion_width = self.dispersion_width_input.value()
+        method = self.visualization_combo.currentText()
+
+        # Obtener slices actuales
+        current_axial = self.images[self.current_axial, :, :].copy()
+        current_sagittal = self.prepare_sagittal_slice(self.images[:, :, self.current_sagittal])
+        current_coronal = self.prepare_coronal_slice(self.images[:, self.current_coronal, :])
+
+
+        def restaurar_imagen(imagen_original, tipo='LS', K=10, N0=0.1, alpha=0.1, m1=0.3):
+            """
+            Aplica un algoritmo de reconstrucción (LS, CLS, WCLS o BMR) a una imagen degradada.
+
+            Parámetros:
+            - imagen_original: ndarray 2D (imagen en escala de grises, normalizada entre 0 y 1)
+            - tipo: str, uno de 'LS', 'CLS', 'WCLS', 'BMR'
+            - K: int, ancho de la función de dispersión (matriz del sistema S)
+            - N0: float, varianza del ruido
+            - alpha: float, parámetro de regularización para CLS y WCLS
+            - m1: float, parámetro de ponderación para WCLS
+            """
+            if tipo not in ['LS', 'CLS', 'WCLS', 'BMR']:
+                raise ValueError("Tipo debe ser uno de: 'LS', 'CLS', 'WCLS', 'BMR'")
+
+            V = imagen_original
+            M, N = V.shape
+
+            # Generar ruido gaussiano
+            ruido = np.random.randn(M, N) * np.sqrt(N0)
+
+            # Construcción de la matriz S usando |sinc(x)|
+            a = np.zeros(M)
+            for i in range(1, 2 * (K // 2) + 1):
+                a[i] = abs(np.sinc(i / (K // 2)))
+            a[0] = 1
+            S = toeplitz(a)
+            S /= np.sum(S[M // 2, :])  # Normalización
+
+            # Imagen degradada
+            U = S @ V + ruido
+
+            # Estimaciones
+            if tipo == 'LS':
+                restaurada = np.linalg.inv(S.T @ S) @ S.T @ U
+
+            elif tipo == 'CLS':
+                restaurada = np.linalg.inv(S.T @ S + alpha * np.eye(M)) @ S.T @ U
+
+            elif tipo == 'WCLS':
+                Mu = (1 / N0) * np.eye(M)
+                b = np.zeros(M)
+                b[0], b[1] = 2, -1
+                Mv = toeplitz(b)
+                Mv[0, 0] = Mv[-1, -1] = 1
+                Mv = np.eye(M) + m1 * Mv
+                mv = np.linalg.inv(S.T @ S + alpha * np.eye(M)) @ S.T @ U
+                W = np.linalg.inv(S.T @ Mu @ S + alpha * Mv) @ S.T @ Mu
+                restaurada = mv + W @ (U - S @ mv)
+
+            elif tipo == 'BMR':
+                mv = np.linalg.inv(S.T @ S + alpha * np.eye(M)) @ S.T @ U
+                Rn = N0 * np.eye(M)
+                mean_v = np.mean(V)
+                Rv = (V - mean_v) @ (V - mean_v).T + 0.1 * np.eye(M)
+                Mu_BMR = np.linalg.inv(Rn)
+                Mv_BMR = np.linalg.inv(Rv)
+                W3 = np.linalg.inv(S.T @ Mu_BMR @ S + Mv_BMR) @ S.T @ Mu_BMR
+                restaurada = mv + W3 @ (U - S @ mv)
+
+            return restaurada
+        
+        def calcular_metricas(original, reconstruida):
+            """
+            Calcula PSNR, IOSNR, MAE y SSIM entre dos imágenes.
+
+            Parámetros:
+            - original: ndarray 2D (imagen original, normalizada entre 0 y 1)
+            - reconstruida: ndarray 2D (imagen restaurada)
+
+            Retorna:
+            - ndarray de 4 elementos: [PSNR, IOSNR, MAE, SSIM]
+            """
+            psnr_val = peak_signal_noise_ratio(original, reconstruida, data_range=1.0)
+            iosnr_val = 10 * np.log10(np.mean(original**2) / np.mean((original - reconstruida)**2))
+            mae_val = np.mean(np.abs(original - reconstruida))
+            ssim_val = structural_similarity(original, reconstruida, data_range=1.0)
+
+            return np.array([psnr_val, iosnr_val, mae_val, ssim_val])
+
+
+        self.cls_axial = restaurar_imagen(current_axial, tipo='CLS', K=int(dispersion_width))
+        self.cls_sagital = restaurar_imagen(current_sagittal, tipo='CLS', K=int(dispersion_width))
+        self.cls_coronal = restaurar_imagen(current_coronal, tipo='CLS', K=int(dispersion_width))
+
+        self.wcls_axial = restaurar_imagen(current_axial, tipo='WCLS', K=int(dispersion_width))
+        self.wcls_sagital = restaurar_imagen(current_sagittal, tipo='WCLS', K=int(dispersion_width))
+        self.wcls_coronal = restaurar_imagen(current_coronal, tipo='WCLS', K=int(dispersion_width))
+
+        self.bmr_axial = restaurar_imagen(current_axial, tipo='BMR', K=int(dispersion_width))
+        self.bmr_sagital = restaurar_imagen(current_sagittal, tipo='BMR', K=int(dispersion_width))
+        self.bmr_coronal = restaurar_imagen(current_coronal, tipo='BMR', K=int(dispersion_width))
+
+
+        if method == "CLS":
+            self.transformed_axial = self.cls_axial
+            self.transformed_sagittal = self.cls_sagital
+            self.transformed_coronal = self.cls_coronal
+        elif method == "WCLS":
+            self.transformed_axial = self.wcls_axial
+            self.transformed_sagittal = self.wcls_sagital
+            self.transformed_coronal = self.wcls_coronal
+        elif method == "BMR":
+            self.transformed_axial = self.bmr_axial
+            self.transformed_sagittal = self.bmr_sagital
+            self.transformed_coronal = self.bmr_coronal
+        else:
+            self.transformed_axial = current_axial
+            self.transformed_sagittal = current_sagittal
+            self.transformed_coronal = current_coronal
+
+
+        metricas_axial_cls = calcular_metricas(current_axial, self.cls_axial)
+        metricas_sagittal_cls = calcular_metricas(current_sagittal,self.cls_sagital )
+        metricas_coronal_cls = calcular_metricas(current_coronal,self.cls_coronal)
+
+        metricas_axial_wcls = calcular_metricas(current_axial, self.wcls_axial)
+        metricas_sagittal_wcls = calcular_metricas(current_sagittal, self.wcls_sagital)
+        metricas_coronal_wcls = calcular_metricas(current_coronal, self.wcls_coronal)
+
+        metricas_axial_bmr = calcular_metricas(current_axial, self.bmr_axial)
+        metricas_sagittal_bmr = calcular_metricas(current_sagittal, self.bmr_sagital)
+        metricas_coronal_bmr = calcular_metricas(current_coronal, self.bmr_coronal)
+        
+
+        # Mostrar métricas en la tabla
+        def actualizar_tabla_metricas(fila_inicio, metricas_axial, metricas_sagittal, metricas_coronal):
+            """Actualiza las métricas en la tabla para un método específico."""
+            def crear_celda_centrada(valor):
+                """Crea un QTableWidgetItem con texto centrado."""
+                item = QTableWidgetItem(f"{valor}")
+                item.setTextAlignment(Qt.AlignCenter)
+                return item
+
+            self.metrics_table.setItem(fila_inicio, 0, crear_celda_centrada(f"{metricas_axial[0]:.2f}"))
+            self.metrics_table.setItem(fila_inicio, 1, crear_celda_centrada(f"{metricas_sagittal[0]:.2f}"))
+            self.metrics_table.setItem(fila_inicio, 2, crear_celda_centrada(f"{metricas_coronal[0]:.2f}"))
+
+            self.metrics_table.setItem(fila_inicio + 1, 0, crear_celda_centrada(f"{metricas_axial[1]:.2f}"))
+            self.metrics_table.setItem(fila_inicio + 1, 1, crear_celda_centrada(f"{metricas_sagittal[1]:.2f}"))
+            self.metrics_table.setItem(fila_inicio + 1, 2, crear_celda_centrada(f"{metricas_coronal[1]:.2f}"))
+
+            self.metrics_table.setItem(fila_inicio + 2, 0, crear_celda_centrada(f"{metricas_axial[2]:.4f}"))
+            self.metrics_table.setItem(fila_inicio + 2, 1, crear_celda_centrada(f"{metricas_sagittal[2]:.4f}"))
+            self.metrics_table.setItem(fila_inicio + 2, 2, crear_celda_centrada(f"{metricas_coronal[2]:.4f}"))
+
+            self.metrics_table.setItem(fila_inicio + 3, 0, crear_celda_centrada(f"{metricas_axial[3]:.4f}"))
+            self.metrics_table.setItem(fila_inicio + 3, 1, crear_celda_centrada(f"{metricas_sagittal[3]:.4f}"))
+            self.metrics_table.setItem(fila_inicio + 3, 2, crear_celda_centrada(f"{metricas_coronal[3]:.4f}"))
+
+        # Actualizar métricas para CLS
+        actualizar_tabla_metricas(0, metricas_axial_cls, metricas_sagittal_cls, metricas_coronal_cls)
+
+        # Actualizar métricas para WCLS
+        actualizar_tabla_metricas(4, metricas_axial_wcls, metricas_sagittal_wcls, metricas_coronal_wcls)
+
+        # Actualizar métricas para BMR
+        actualizar_tabla_metricas(8, metricas_axial_bmr, metricas_sagittal_bmr, metricas_coronal_bmr)
+
+        # Mostrar resultados
+        self.display_transformed_slices()
+
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     viewer = DICOMViewer()
     viewer.show()
     sys.exit(app.exec_())
-
-
-
-
-
