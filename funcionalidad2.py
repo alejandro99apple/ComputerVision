@@ -83,6 +83,14 @@ class DICOMViewer(QMainWindow):
         load_btn.clicked.connect(self.load_dicom)
         barra1_layout.addWidget(load_btn)
 
+        reset_btn = QPushButton("Reiniciar")
+        reset_btn.setStyleSheet("""
+            QPushButton {
+                font-weight: bold;
+            }
+        """)
+        reset_btn.clicked.connect(self.reset_views)
+        reset_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Set cursor to hand pointer
         # Grupo de radio buttons para opciones principales
         self.transform_rb = QRadioButton("Transformación de Coordenadas")
         self.filter_rb = QRadioButton("Filtrado")
@@ -98,6 +106,7 @@ class DICOMViewer(QMainWindow):
         barra1_layout.addWidget(self.spatial_improvement_rb)
         
         barra1_layout.addStretch()
+        barra1_layout.addWidget(reset_btn)
         main_layout.addWidget(barra1)
 
         # Separador visual
@@ -225,6 +234,7 @@ class DICOMViewer(QMainWindow):
 
         # Botón APLICAR para ejecutar ambas funciones de filtrado
         self.apply_filter_btn = QPushButton("APLICAR")
+        self.apply_filter_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Cambiar cursor a mano
         self.apply_filter_btn.setFixedSize(150, 30)
         self.apply_filter_btn.setStyleSheet("""
             QPushButton {
@@ -233,6 +243,7 @@ class DICOMViewer(QMainWindow):
                 border: none;
                 border-radius: 5px;
                 font-weight: bold;
+
             }
             QPushButton:hover {
                 background-color: #45a049;
@@ -299,6 +310,7 @@ class DICOMViewer(QMainWindow):
         
         # Botón APLICAR centrado (igual al de transformación)
         self.apply_resolution_btn = QPushButton("APLICAR")
+        self.apply_resolution_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Cambiar cursor a mano
         self.apply_resolution_btn.setFixedSize(150, 30)
         self.apply_resolution_btn.setStyleSheet("""
             QPushButton {
@@ -381,6 +393,7 @@ class DICOMViewer(QMainWindow):
         
         # Botón APLICAR (centrado)
         self.apply_button = QPushButton("APLICAR")
+        self.apply_button.setCursor(QCursor(Qt.PointingHandCursor))  # Cambiar cursor a mano
         self.apply_button.setFixedSize(120, 30)
         self.apply_button.setStyleSheet("""
             QPushButton {
@@ -727,6 +740,7 @@ class DICOMViewer(QMainWindow):
         # Botón APLICAR
         self.apply_button = QPushButton("APLICAR")
         self.apply_button.setFixedSize(150, 30)
+        self.apply_button.setCursor(QCursor(Qt.PointingHandCursor))
         self.apply_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
@@ -985,21 +999,24 @@ class DICOMViewer(QMainWindow):
         folder = QFileDialog.getExistingDirectory(self, "Select DICOM Folder")
         if not folder:
             return
-            
+
         try:
+            # Suppress VTK error messages
+            vtk.vtkObject.GlobalWarningDisplayOff()
+
             # Verificar si el directorio contiene archivos DICOM válidos
             reader = vtk.vtkDICOMImageReader()
             reader.SetDirectoryName(folder)
             reader.Update()
-            
+
             if reader.GetOutput().GetDimensions() == (0, 0, 0):
                 raise ValueError("El directorio no contiene imágenes DICOM válidas.")
-            
+
             # Obtener datos como matriz numpy 3D
             vtk_data = reader.GetOutput().GetPointData().GetScalars()
             self.dims = reader.GetOutput().GetDimensions()
             self.images = numpy_support.vtk_to_numpy(vtk_data).reshape(self.dims[2], self.dims[1], self.dims[0])
-            
+
             # Guardar dimensiones y espaciado
             self.spacing = reader.GetOutput().GetSpacing()
 
@@ -1011,20 +1028,24 @@ class DICOMViewer(QMainWindow):
             self.current_axial = self.dims[2] // 2
             self.current_sagittal = self.dims[0] // 2
             self.current_coronal = self.dims[1] // 2
-            
+
             print(f"Dimensiones del volumen: {self.dims}")
             print(f"Espaciado: {self.spacing}")
             print(f"Valores mínimo y máximo: {self.borders}")
 
-            #Actualizar los valores de inputs de traslacion
+            # Actualizar los valores de inputs de traslación
             self.h_translation_input.setRange(-self.dims[0], self.dims[0])
             self.v_translation_input.setRange(-self.dims[1], self.dims[1])
-            
+
             self.create_vtk_widgets()
-            
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al cargar DICOM:\n{str(e)}")
             print(f"Error al cargar DICOM: {str(e)}")
+
+        """ finally:
+            # Re-enable VTK error messages
+            vtk.vtkObject.GlobalWarningDisplayOn() """
 
     def create_vtk_widgets(self):
         """Configura las visualizaciones para las 3 vistas y la vista 3D"""
@@ -1159,6 +1180,14 @@ class DICOMViewer(QMainWindow):
 
         # Asegurar que los layouts no ajusten automáticamente los tamaños
         self.viz_layout.setSizeConstraint(QGridLayout.SetFixedSize)
+
+    def reset_views(self):
+        self.transformed_axial = self.current_axial
+        self.transformed_sagittal = self.current_sagittal
+        self.transformed_coronal = self.current_coronal
+
+        self.update_all_views()
+
 
     def update_all_views(self):
         if self.images is None:
