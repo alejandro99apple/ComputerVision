@@ -2,7 +2,6 @@ from scipy.linalg import toeplitz
 import sys
 import os
 import numpy as np
-from scipy.linalg import toeplitz
 import cv2
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QGridLayout, QPushButton, QLabel, 
@@ -56,6 +55,22 @@ class DICOMViewer(QMainWindow):
         self.transformed_sagittal = None
         self.transformed_coronal = None
 
+        # Barra de estado
+        self.status_bar = QLabel("Listo")
+        self.status_bar.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+        self.status_bar.setStyleSheet("""
+            QLabel {
+                background-color: #a7a09f;
+                color: white;
+                padding: 5px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+        """)
+        self.status_bar.hide()
+        self.status_bar_timer = QTimer()
+        self.status_bar_timer.setSingleShot(True)
+        self.status_bar_timer.timeout.connect(self.hide_status_bar)
         
         self.create_ui()
 
@@ -87,14 +102,10 @@ class DICOMViewer(QMainWindow):
         reset_btn.setStyleSheet("""
             QPushButton {
                 font-weight: bold;
-                cursor: default; /* Default cursor when not hovering */
-            }
-            QPushButton:hover {
-                background-color: #d68d7d;
-                cursor: pointer; /* Hand cursor when hovering */
-                border-radius: 1px;
             }
         """)
+        reset_btn.clicked.connect(self.reset_views)
+        reset_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Set cursor to hand pointer
         # Grupo de radio buttons para opciones principales
         self.transform_rb = QRadioButton("Transformación de Coordenadas")
         self.filter_rb = QRadioButton("Filtrado")
@@ -171,6 +182,26 @@ class DICOMViewer(QMainWindow):
         # Eliminar tamaño fijo de la ventana principal
         self.setMinimumSize(800, 600)  # Tamaño mínimo para evitar deformaciones
 
+        # Configurar barra de estado
+        self.status_bar.setParent(self)
+        self.status_bar.setGeometry(self.width() - 200, self.height() - 40, 180, 30)
+        self.status_bar.raise_()
+        self.resizeEvent(None)  # Adjust position on initialization
+
+    def resizeEvent(self, event):
+        """Adjust the position of the status bar on window resize."""
+        self.status_bar.setGeometry(self.width() - 200, self.height() - 40, 180, 30)
+        super().resizeEvent(event)
+
+    def show_status_bar(self, message):
+        """Show the status bar with a message."""
+        self.status_bar.setText(message)
+        self.status_bar.show()
+
+    def hide_status_bar(self):
+        """Hide the status bar."""
+        self.status_bar.hide()
+
     def create_options_containers(self):
         """Crea los contenedores para cada tipo de opciones alineados arriba"""
         
@@ -238,6 +269,7 @@ class DICOMViewer(QMainWindow):
 
         # Botón APLICAR para ejecutar ambas funciones de filtrado
         self.apply_filter_btn = QPushButton("APLICAR")
+        self.apply_filter_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Cambiar cursor a mano
         self.apply_filter_btn.setFixedSize(150, 30)
         self.apply_filter_btn.setStyleSheet("""
             QPushButton {
@@ -246,6 +278,7 @@ class DICOMViewer(QMainWindow):
                 border: none;
                 border-radius: 5px;
                 font-weight: bold;
+
             }
             QPushButton:hover {
                 background-color: #45a049;
@@ -312,6 +345,7 @@ class DICOMViewer(QMainWindow):
         
         # Botón APLICAR centrado (igual al de transformación)
         self.apply_resolution_btn = QPushButton("APLICAR")
+        self.apply_resolution_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Cambiar cursor a mano
         self.apply_resolution_btn.setFixedSize(150, 30)
         self.apply_resolution_btn.setStyleSheet("""
             QPushButton {
@@ -394,6 +428,7 @@ class DICOMViewer(QMainWindow):
         
         # Botón APLICAR (centrado)
         self.apply_button = QPushButton("APLICAR")
+        self.apply_button.setCursor(QCursor(Qt.PointingHandCursor))  # Cambiar cursor a mano
         self.apply_button.setFixedSize(120, 30)
         self.apply_button.setStyleSheet("""
             QPushButton {
@@ -740,6 +775,7 @@ class DICOMViewer(QMainWindow):
         # Botón APLICAR
         self.apply_button = QPushButton("APLICAR")
         self.apply_button.setFixedSize(150, 30)
+        self.apply_button.setCursor(QCursor(Qt.PointingHandCursor))
         self.apply_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
@@ -995,8 +1031,11 @@ class DICOMViewer(QMainWindow):
             self.update_resolution_controls()
 
     def load_dicom(self):
+        self.show_status_bar("CARGANDO...")
+        QApplication.processEvents()  # Ensure UI updates immediately
         folder = QFileDialog.getExistingDirectory(self, "Select DICOM Folder")
         if not folder:
+            self.hide_status_bar()
             return
 
         try:
@@ -1041,10 +1080,8 @@ class DICOMViewer(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al cargar DICOM:\n{str(e)}")
             print(f"Error al cargar DICOM: {str(e)}")
-
-        """ finally:
-            # Re-enable VTK error messages
-            vtk.vtkObject.GlobalWarningDisplayOn() """
+        finally:
+            self.hide_status_bar()
 
     def create_vtk_widgets(self):
         """Configura las visualizaciones para las 3 vistas y la vista 3D"""
@@ -1179,6 +1216,14 @@ class DICOMViewer(QMainWindow):
 
         # Asegurar que los layouts no ajusten automáticamente los tamaños
         self.viz_layout.setSizeConstraint(QGridLayout.SetFixedSize)
+
+    def reset_views(self):
+        self.transformed_axial = self.current_axial
+        self.transformed_sagittal = self.current_sagittal
+        self.transformed_coronal = self.current_coronal
+
+        self.update_all_views()
+
 
     def update_all_views(self):
         if self.images is None:
@@ -1415,9 +1460,12 @@ class DICOMViewer(QMainWindow):
         return current_axial, current_sagittal, current_coronal
 
     def apply_transform(self):
+        self.show_status_bar("Cargando...")
+        QApplication.processEvents()  # Ensure UI updates immediately
         """Aplica la transformación a las imágenes actualmente visibles"""
         if self.images is None:
             QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para transformar.")
+            self.hide_status_bar()
             return
         
         # Obtenemos las imágenes actuales (ya transformadas si aplica)
@@ -1426,20 +1474,24 @@ class DICOMViewer(QMainWindow):
         checked_button = self.transform_options.checkedButton()
         if not checked_button:
             QMessageBox.warning(self, "Advertencia", "No se ha seleccionado ninguna transformación.")
+            self.hide_status_bar()
             return
         
         transform_type = checked_button.text()
         
-        if transform_type == "Rotación":
-            # Aplicamos rotación a las imágenes ya transformadas
-            self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = self.apply_rotation(current_axial, current_sagittal, current_coronal)
-        elif transform_type == "Traslación":
-            self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = (self.apply_translation(current_axial, current_sagittal, current_coronal))
-        elif transform_type == "Escalamiento":
-            self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = (self.apply_scaling(current_axial, current_sagittal, current_coronal))
-        elif transform_type == "Inclinación":
-            self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = (self.apply_shearing(current_axial, current_sagittal, current_coronal))
-        self.display_transformed_slices()
+        try:
+            if transform_type == "Rotación":
+                # Aplicamos rotación a las imágenes ya transformadas
+                self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = self.apply_rotation(current_axial, current_sagittal, current_coronal)
+            elif transform_type == "Traslación":
+                self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = (self.apply_translation(current_axial, current_sagittal, current_coronal))
+            elif transform_type == "Escalamiento":
+                self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = (self.apply_scaling(current_axial, current_sagittal, current_coronal))
+            elif transform_type == "Inclinación":
+                self.transformed_axial, self.transformed_sagittal, self.transformed_coronal = (self.apply_shearing(current_axial, current_sagittal, current_coronal))
+            self.display_transformed_slices()
+        finally:
+            self.hide_status_bar()
 
     def display_transformed_slices(self):
         """Muestra los slices transformados en las vistas correspondientes"""
@@ -1795,28 +1847,34 @@ class DICOMViewer(QMainWindow):
             self.movement_intensity_input.setEnabled(True)
 
     def apply_resolution_changes(self):
+        self.show_status_bar("Cargando...")
+        QApplication.processEvents()  # Ensure UI updates immediately
         """Aplica los cambios de resolución seleccionados"""
         if self.images is None:
             QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para modificar.")
+            self.hide_status_bar()
             return
         
         selected_rb = self.resolution_options.checkedButton()
         
-        if selected_rb == self.spatial_resolution_rb:
-            sampling_type = self.sampling_combo.currentText()
-            percentage = self.percentage_input.value()
-            self.apply_spatial_resolution(sampling_type, percentage)
-            
-        elif selected_rb == self.radiometric_resolution_rb:
-            # Aplicar cambios de resolución radiométrica
-            bits = self.bits_input.value()
-            self.apply_radiometric_resolution(bits)
-            
-        elif selected_rb == self.temporal_resolution_rb:
-            # Aplicar cambios de resolución temporal
-            movement_type = self.movement_combo.currentText()
-            intensity = self.movement_intensity_input.value()
-            self.apply_temporal_resolution(movement_type, intensity)
+        try:
+            if selected_rb == self.spatial_resolution_rb:
+                sampling_type = self.sampling_combo.currentText()
+                percentage = self.percentage_input.value()
+                self.apply_spatial_resolution(sampling_type, percentage)
+                
+            elif selected_rb == self.radiometric_resolution_rb:
+                # Aplicar cambios de resolución radiométrica
+                bits = self.bits_input.value()
+                self.apply_radiometric_resolution(bits)
+                
+            elif selected_rb == self.temporal_resolution_rb:
+                # Aplicar cambios de resolución temporal
+                movement_type = self.movement_combo.currentText()
+                intensity = self.movement_intensity_input.value()
+                self.apply_temporal_resolution(movement_type, intensity)
+        finally:
+            self.hide_status_bar()
 
     def apply_spatial_resolution(self, sampling_type, percentage):
         """Aplica submuestreo o sobremuestreo a las imágenes visibles"""
@@ -2142,20 +2200,28 @@ class DICOMViewer(QMainWindow):
         
 
     def apply_filters(self):
+        self.show_status_bar("Cargando...")
+        QApplication.processEvents()  # Ensure UI updates immediately
         """Ejecuta las funciones de filtrado espacial y frecuencial según las opciones seleccionadas."""
-        if self.frequency_domain_rb.isChecked():
-            self.apply_frequency_filter_to_current_image()
-        elif self.spatial_domain_rb.isChecked():
-            self.apply_spatial_filter_to_current_image()
+        try:
+            if self.frequency_domain_rb.isChecked():
+                self.apply_frequency_filter_to_current_image()
+            elif self.spatial_domain_rb.isChecked():
+                self.apply_spatial_filter_to_current_image()
+        finally:
+            self.hide_status_bar()
 
     #=====================================================================================================
 
     #==========================================MEJORAMIENTO ESPACIAL======================================
 
     def apply_spatial_improvement(self):
+        self.show_status_bar("Cargando...")
+        QApplication.processEvents()  # Ensure UI updates immediately
         """Aplica el mejoramiento espacial a las imágenes visibles."""
         if self.images is None:
             QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para mejorar.")
+            self.hide_status_bar()
             return
 
         # Obtener parámetros de entrada
@@ -2285,7 +2351,7 @@ class DICOMViewer(QMainWindow):
         metricas_coronal_cls = calcular_metricas(current_coronal,self.cls_coronal)
 
         metricas_axial_wcls = calcular_metricas(current_axial, self.wcls_axial)
-        metricas_sagittal_wcls = calcular_metricas(current_sagittal, self.wcls_sagital)
+        metricas_sagittal_wcls = calcular_metricas(current_sagittal, self.wcls_sagittal)
         metricas_coronal_wcls = calcular_metricas(current_coronal, self.wcls_coronal)
 
         metricas_axial_bmr = calcular_metricas(current_axial, self.bmr_axial)
@@ -2329,6 +2395,7 @@ class DICOMViewer(QMainWindow):
 
         # Mostrar resultados
         self.display_transformed_slices()
+        self.hide_status_bar()
 
 
 
