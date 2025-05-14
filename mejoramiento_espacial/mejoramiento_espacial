@@ -1,0 +1,99 @@
+import pydicom
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.linalg import toeplitz
+
+def restaurar_imagen(imagen_original, tipo='LS', K=10, N0=0.1, alpha=0.1, m1=0.3):
+            """
+            Aplica un algoritmo de reconstrucción (LS, CLS, WCLS o BMR) a una imagen degradada.
+
+            Parámetros:
+            - imagen_original: ndarray 2D (imagen en escala de grises, normalizada entre 0 y 1)
+            - tipo: str, uno de 'LS', 'CLS', 'WCLS', 'BMR'
+            - K: int, ancho de la función de dispersión (matriz del sistema S)
+            - N0: float, varianza del ruido
+            - alpha: float, parámetro de regularización para CLS y WCLS
+            - m1: float, parámetro de ponderación para WCLS
+            """
+            if tipo not in ['LS', 'CLS', 'WCLS', 'BMR']:
+                raise ValueError("Tipo debe ser uno de: 'LS', 'CLS', 'WCLS', 'BMR'")
+
+            V = imagen_original
+            M, N = V.shape
+
+            # Generar ruido gaussiano
+            ruido = np.random.randn(M, N) * np.sqrt(N0)
+
+            # Construcción de la matriz S usando |sinc(x)|
+            a = np.zeros(M)
+            for i in range(1, 2 * (K // 2) + 1):
+                a[i] = abs(np.sinc(i / (K // 2)))
+            a[0] = 1
+            S = toeplitz(a)
+            S /= np.sum(S[M // 2, :])  # Normalización
+
+            # Imagen degradada
+            U = S @ V + ruido
+
+            # Estimaciones
+            if tipo == 'LS':
+                restaurada = np.linalg.inv(S.T @ S) @ S.T @ U
+
+            elif tipo == 'CLS':
+                restaurada = np.linalg.inv(S.T @ S + alpha * np.eye(M)) @ S.T @ U
+
+            elif tipo == 'WCLS':
+                Mu = (1 / N0) * np.eye(M)
+                b = np.zeros(M)
+                b[0], b[1] = 2, -1
+                Mv = toeplitz(b)
+                Mv[0, 0] = Mv[-1, -1] = 1
+                Mv = np.eye(M) + m1 * Mv
+                mv = np.linalg.inv(S.T @ S + alpha * np.eye(M)) @ S.T @ U
+                W = np.linalg.inv(S.T @ Mu @ S + alpha * Mv) @ S.T @ Mu
+                restaurada = mv + W @ (U - S @ mv)
+
+            elif tipo == 'BMR':
+                mv = np.linalg.inv(S.T @ S + alpha * np.eye(M)) @ S.T @ U
+                Rn = N0 * np.eye(M)
+                mean_v = np.mean(V)
+                Rv = (V - mean_v) @ (V - mean_v).T + 0.1 * np.eye(M)
+                Mu_BMR = np.linalg.inv(Rn)
+                Mv_BMR = np.linalg.inv(Rv)
+                W3 = np.linalg.inv(S.T @ Mu_BMR @ S + Mv_BMR) @ S.T @ Mu_BMR
+                restaurada = mv + W3 @ (U - S @ mv)
+
+            return restaurada,U, S
+
+# Cargar el archivo DICOM
+ds = pydicom.dcmread("1-44.dcm")
+
+# Obtener el array de píxeles
+img = ds.pixel_array
+
+imagen_restaurada, U, S = restaurar_imagen(img, tipo='LS', K=100, N0=0.1, alpha=0.1, m1=0.3)
+
+# Mostrar la imagen original, degradada, restaurada y la matriz S
+plt.figure(figsize=(20, 5))
+plt.subplot(1, 4, 1)
+plt.imshow(img, cmap='gray')
+plt.title("Imagen Original")
+plt.axis('off')
+
+plt.subplot(1, 4, 2)
+plt.imshow(U, cmap='gray')
+plt.title("Imagen Degradada (U)")
+plt.axis('off')
+
+plt.subplot(1, 4, 3)
+plt.imshow(imagen_restaurada, cmap='gray')
+plt.title("Imagen Restaurada")
+plt.axis('off')
+
+plt.subplot(1, 4, 4)
+plt.imshow(S, cmap='gray')
+plt.title("Matriz S")
+plt.axis('off')
+
+plt.tight_layout()
+plt.show()

@@ -75,7 +75,6 @@ class DICOMViewer(QMainWindow):
         self.create_ui()
 
         # Conectar señales después de que todos los widgets han sido creados
-        self.apply_resolution_btn.clicked.connect(self.apply_resolution_changes)
         self.resolution_options.buttonClicked.connect(self.update_resolution_controls)
 
     def create_ui(self):
@@ -412,8 +411,8 @@ class DICOMViewer(QMainWindow):
         # Input: Ancho de la función de dispersión
         dispersion_label = QLabel("Ancho de la función de dispersión:")
         self.dispersion_width_input = QDoubleSpinBox()
-        self.dispersion_width_input.setRange(5.0, 10.0)
-        self.dispersion_width_input.setSingleStep(1)
+        self.dispersion_width_input.setRange(10.0, 100.0)
+        self.dispersion_width_input.setSingleStep(10.0)
         self.dispersion_width_input.setValue(5.0)
         self.dispersion_width_input.setStyleSheet("""
             QDoubleSpinBox {
@@ -422,10 +421,9 @@ class DICOMViewer(QMainWindow):
                 border-radius: 4px;
             }
         """)
-        
         spatial_layout.addWidget(dispersion_label)
         spatial_layout.addWidget(self.dispersion_width_input)
-        
+
         # Botón APLICAR (centrado)
         self.apply_button = QPushButton("APLICAR")
         self.apply_button.setCursor(QCursor(Qt.PointingHandCursor))  # Cambiar cursor a mano
@@ -459,7 +457,7 @@ class DICOMViewer(QMainWindow):
         # Selector: Visualización
         visualization_label = QLabel("Visualización:")
         self.visualization_combo = QComboBox()
-        self.visualization_combo.addItems(["CLS", "WCLS", "BMR"])
+        self.visualization_combo.addItems(["CLS", "WCLS", "BMR", "Imagen Degradada", "Imagen Original"])
         self.visualization_combo.setStyleSheet("""
             QComboBox {
                 padding: 5px;
@@ -468,7 +466,7 @@ class DICOMViewer(QMainWindow):
                 min-width: 120px;
             }
         """)
-        
+        self.visualization_combo.setEnabled(False)  # Desactivado por defecto
         spatial_layout.addWidget(visualization_label)
         spatial_layout.addWidget(self.visualization_combo)
 
@@ -572,27 +570,15 @@ class DICOMViewer(QMainWindow):
         self.options2_layout.addWidget(self.main_options_container)
         self.options2_layout.addStretch()
 
-        # Conectar el ComboBox de visualización a la nueva función
-        self.visualization_combo.currentTextChanged.connect(self.actualizar_visualizacion)
+        # Conectar el ComboBox de visualización al método de instancia
+        self.visualization_combo.currentTextChanged.connect(lambda metodo: self._actualizar_vistas_wrapper(metodo))
 
-    def actualizar_visualizacion(self, metodo):
-        """Actualiza la visualización según el método seleccionado en el ComboBox."""
-        if metodo == "CLS":
-            self.transformed_axial = self.cls_axial
-            self.transformed_sagittal = self.cls_sagital
-            self.transformed_coronal = self.cls_coronal
-        elif metodo == "WCLS":
-            self.transformed_axial = self.wcls_axial
-            self.transformed_sagittal = self.wcls_sagital
-            self.transformed_coronal = self.wcls_coronal
-        elif metodo == "BMR":
-            self.transformed_axial = self.bmr_axial
-            self.transformed_sagittal = self.bmr_sagital
-            self.transformed_coronal = self.bmr_coronal
-        else:
-            self.transformed_axial = self.images[self.current_axial, :, :]
-            self.transformed_sagittal = self.prepare_sagittal_slice(self.images[:, :, self.current_sagittal])
-            self.transformed_coronal = self.prepare_coronal_slice(self.images[:, self.current_coronal, :])
+    def _actualizar_vistas_wrapper(self, metodo):
+        # Llama a la función interna actualizar_vistas definida en apply_spatial_improvement
+        if hasattr(self, '_actualizar_vistas_func'):
+            self._actualizar_vistas_func(metodo)
+
+
 
         # Mostrar los resultados actualizados
         self.display_transformed_slices()
@@ -1898,9 +1884,6 @@ class DICOMViewer(QMainWindow):
 
     def apply_spatial_resolution(self, sampling_type, percentage):
         """Aplica submuestreo o sobremuestreo a las imágenes visibles"""
-        if self.images is None:
-            QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para modificar.")
-            return
 
         # Obtener slices actuales
         current_axial = self.images[self.current_axial, :, :].copy()
@@ -2266,8 +2249,11 @@ class DICOMViewer(QMainWindow):
         """Aplica el mejoramiento espacial a las imágenes visibles."""
         if self.images is None:
             QMessageBox.warning(self, "Advertencia", "No hay imágenes cargadas para mejorar.")
+            self.visualization_combo.setEnabled(False)  # Desactiva el ComboBox si no hay imágenes
             self.hide_status_bar()
             return
+        else:
+            self.visualization_combo.setEnabled(True)  # Activa el ComboBox si hay imágenes
 
         # Obtener parámetros de entrada
         dispersion_width = self.dispersion_width_input.value()
@@ -2277,7 +2263,6 @@ class DICOMViewer(QMainWindow):
         current_axial = self.images[self.current_axial, :, :].copy()
         current_sagittal = self.prepare_sagittal_slice(self.images[:, :, self.current_sagittal])
         current_coronal = self.prepare_coronal_slice(self.images[:, self.current_coronal, :])
-
 
         def restaurar_imagen(imagen_original, tipo='LS', K=10, N0=0.1, alpha=0.1, m1=0.3):
             """
@@ -2339,7 +2324,7 @@ class DICOMViewer(QMainWindow):
                 W3 = np.linalg.inv(S.T @ Mu_BMR @ S + Mv_BMR) @ S.T @ Mu_BMR
                 restaurada = mv + W3 @ (U - S @ mv)
 
-            return restaurada
+            return restaurada, U
         
         def calcular_metricas(original, reconstruida):
             """
@@ -2360,36 +2345,51 @@ class DICOMViewer(QMainWindow):
             return np.array([psnr_val, iosnr_val, mae_val, ssim_val])
 
 
-        self.cls_axial = restaurar_imagen(current_axial, tipo='CLS', K=int(dispersion_width))
-        self.cls_sagital = restaurar_imagen(current_sagittal, tipo='CLS', K=int(dispersion_width))
-        self.cls_coronal = restaurar_imagen(current_coronal, tipo='CLS', K=int(dispersion_width))
-
-        self.wcls_axial = restaurar_imagen(current_axial, tipo='WCLS', K=int(dispersion_width))
-        self.wcls_sagital = restaurar_imagen(current_sagittal, tipo='WCLS', K=int(dispersion_width))
-        self.wcls_coronal = restaurar_imagen(current_coronal, tipo='WCLS', K=int(dispersion_width))
-
-        self.bmr_axial = restaurar_imagen(current_axial, tipo='BMR', K=int(dispersion_width))
-        self.bmr_sagital = restaurar_imagen(current_sagittal, tipo='BMR', K=int(dispersion_width))
-        self.bmr_coronal = restaurar_imagen(current_coronal, tipo='BMR', K=int(dispersion_width))
 
 
-        if method == "CLS":
-            self.transformed_axial = self.cls_axial
-            self.transformed_sagittal = self.cls_sagital
-            self.transformed_coronal = self.cls_coronal
-        elif method == "WCLS":
-            self.transformed_axial = self.wcls_axial
-            self.transformed_sagittal = self.wcls_sagital
-            self.transformed_coronal = self.wcls_coronal
-        elif method == "BMR":
-            self.transformed_axial = self.bmr_axial
-            self.transformed_sagittal = self.bmr_sagital
-            self.transformed_coronal = self.bmr_coronal
-        else:
-            self.transformed_axial = current_axial
-            self.transformed_sagittal = current_sagittal
-            self.transformed_coronal = current_coronal
+        self.cls_axial, U_axial = restaurar_imagen(current_axial, tipo='CLS', K=int(dispersion_width), N0=0.1)
+        self.cls_sagital, U_sagital = restaurar_imagen(current_sagittal, tipo='CLS', K=int(dispersion_width), N0=0.1)
+        self.cls_coronal, U_coronal = restaurar_imagen(current_coronal, tipo='CLS', K=int(dispersion_width), N0=0.1)
 
+        self.wcls_axial, U_axial = restaurar_imagen(current_axial, tipo='WCLS', K=int(dispersion_width), N0=0.1)
+        self.wcls_sagital, U_sagital = restaurar_imagen(current_sagittal, tipo='WCLS', K=int(dispersion_width), N0=0.1)
+        self.wcls_coronal, U_coronal = restaurar_imagen(current_coronal, tipo='WCLS', K=int(dispersion_width), N0=0.1)
+
+        self.bmr_axial, U_axial = restaurar_imagen(current_axial, tipo='BMR', K=int(dispersion_width), N0=0.1)
+        self.bmr_sagital, U_sagital = restaurar_imagen(current_sagittal, tipo='BMR', K=int(dispersion_width), N0=0.1)
+        self.bmr_coronal, U_coronal = restaurar_imagen(current_coronal, tipo='BMR', K=int(dispersion_width), N0=0.1)
+
+        def actualizar_vistas(method):
+
+            print(f"Aplicando método: {method}")
+        
+            if method == "CLS":
+                self.transformed_axial = self.cls_axial
+                self.transformed_sagittal = self.cls_sagital
+                self.transformed_coronal = self.cls_coronal
+            elif method == "WCLS":
+                self.transformed_axial = self.wcls_axial
+                self.transformed_sagittal = self.wcls_sagital
+                self.transformed_coronal = self.wcls_coronal
+            elif method == "BMR":
+                self.transformed_axial = self.bmr_axial
+                self.transformed_sagittal = self.bmr_sagital
+                self.transformed_coronal = self.bmr_coronal
+            elif method == "Imagen Degradada":
+                self.transformed_axial = U_axial
+                self.transformed_sagittal = U_sagital
+                self.transformed_coronal = U_coronal
+            elif method == "Imagen Original":
+                self.transformed_axial = current_axial
+                self.transformed_sagittal = current_sagittal
+                self.transformed_coronal = current_coronal
+            else:
+                self.transformed_axial = current_axial
+                self.transformed_sagittal = current_sagittal
+                self.transformed_coronal = current_coronal
+
+        # Actualizar vistas según el método seleccionado
+        actualizar_vistas(method)
 
         metricas_axial_cls = calcular_metricas(current_axial, self.cls_axial)
         metricas_sagittal_cls = calcular_metricas(current_sagittal,self.cls_sagital )
@@ -2440,6 +2440,7 @@ class DICOMViewer(QMainWindow):
 
         # Mostrar resultados
         self.display_transformed_slices()
+        self._actualizar_vistas_func = actualizar_vistas
         self.hide_status_bar()
 
 
@@ -2450,5 +2451,6 @@ if __name__ == "__main__":
     viewer = DICOMViewer()
     viewer.show()
     sys.exit(app.exec_())
+
 
 
