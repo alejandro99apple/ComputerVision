@@ -1,12 +1,11 @@
 from scipy.linalg import toeplitz
 import sys
-import os
 import numpy as np
 import cv2
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QGridLayout, QPushButton, QLabel, 
                             QSlider, QFileDialog, QMessageBox, QSizePolicy,
-                            QFrame, QRadioButton, QButtonGroup, QLineEdit, QDoubleSpinBox, QComboBox, QSpinBox, QCheckBox, QTableWidget)
+                            QFrame, QRadioButton, QButtonGroup, QDoubleSpinBox, QComboBox, QSpinBox, QTableWidget)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QCursor
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
@@ -18,9 +17,7 @@ import vtk
 from PyQt5.QtWidgets import QTableWidgetItem
 from vtkmodules.util import numpy_support
 from vtkmodules.vtkCommonDataModel import vtkImageData
-from vtkmodules.vtkRenderingCore import (vtkRenderer, vtkRenderWindow, 
-                                        vtkImageSlice, vtkImageSliceMapper,
-                                        vtkVolume, vtkVolumeProperty)
+from vtkmodules.vtkRenderingCore import (vtkVolume, vtkVolumeProperty)
 from vtkmodules.vtkInteractionStyle import vtkInteractorStyleImage
 from vtkmodules.vtkRenderingVolume import vtkFixedPointVolumeRayCastMapper
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -77,6 +74,9 @@ class DICOMViewer(QMainWindow):
         # Conectar señales después de que todos los widgets han sido creados
         self.resolution_options.buttonClicked.connect(self.update_resolution_controls)
 
+    def set_save_and_reset_enabled(self, enabled):
+        self.reset_btn.setEnabled(enabled)
+
     def create_ui(self):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
@@ -97,30 +97,33 @@ class DICOMViewer(QMainWindow):
         load_btn.clicked.connect(self.load_dicom)
         barra1_layout.addWidget(load_btn)
 
-        reset_btn = QPushButton("Reiniciar")
-        reset_btn.setStyleSheet("""
-            QPushButton {
-                font-weight: bold;
-            }
-        """)
-        reset_btn.clicked.connect(self.reset_views)
-        reset_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Set cursor to hand pointer
         # Grupo de radio buttons para opciones principales
         self.transform_rb = QRadioButton("Transformación de Coordenadas")
         self.filter_rb = QRadioButton("Filtrado")
         self.resolution_rb = QRadioButton("Modificación de Resolución")
-        self.spatial_improvement_rb = QRadioButton("Mejoramiento Espacial")
+        self.spatial_improvement_rb = QRadioButton("Mejoramiento de Resolución Espacial")
 
-        
         self.transform_rb.setChecked(True)
-        
+
         barra1_layout.addWidget(self.transform_rb)
         barra1_layout.addWidget(self.filter_rb)
         barra1_layout.addWidget(self.resolution_rb)
         barra1_layout.addWidget(self.spatial_improvement_rb)
-        
-        barra1_layout.addStretch()
-        barra1_layout.addWidget(reset_btn)
+
+        barra1_layout.addStretch()  # Empuja los siguientes widgets a la derecha
+
+        # Botón Reiniciar
+        self.reset_btn = QPushButton("Reiniciar")
+        self.reset_btn.setEnabled(False)
+        self.reset_btn.setStyleSheet("""
+            QPushButton {
+                font-weight: bold;
+            }
+        """)
+        self.reset_btn.clicked.connect(self.reset_views)
+        self.reset_btn.setCursor(QCursor(Qt.PointingHandCursor))  # Set cursor to hand pointer
+        barra1_layout.addWidget(self.reset_btn)
+
         main_layout.addWidget(barra1)
 
         # Separador visual
@@ -254,7 +257,12 @@ class DICOMViewer(QMainWindow):
         filter_info_icon.setPixmap(filter_pixmap)
         filter_info_icon.setCursor(QCursor(Qt.PointingHandCursor))
         filter_info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
-        filter_info_icon.setToolTip("Estas son las opciones para aplicar filtros espaciales o frecuenciales a las imágenes.")
+        filter_info_icon.setToolTip("Permite aplicar filtros espaciales y frecuenciales a las imágenes " \
+                                    "para mejorar la visualización o resaltar características específicas. " \
+                                    "Puedes seleccionar entre diferentes tipos de filtros pasa bajas y pasa altas, " \
+                                    "así como ajustar parámetros como el tipo de ventana, el tamaño del kernel o el " \
+                                    "factor de ruido/borde. Los filtros ayudan a reducir el ruido, suavizar la imagen " \
+                                    "o resaltar bordes y detalles importantes.")
         filter_title_layout.addWidget(filter_info_icon)
         filter_title_layout.addStretch()
 
@@ -323,7 +331,11 @@ class DICOMViewer(QMainWindow):
         resolution_info_icon.setPixmap(resolution_pixmap)
         resolution_info_icon.setCursor(QCursor(Qt.PointingHandCursor))
         resolution_info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
-        resolution_info_icon.setToolTip("Estas son las opciones para modificar la resolución espacial, radiométrica o temporal de las imágenes.")
+        resolution_info_icon.setToolTip("Permite modificar la resolución espacial, radiométrica o temporal de las imágenes. " \
+                                        "Puedes realizar submuestreo o sobremuestreo para cambiar la cantidad de píxeles (resolución " \
+                                        "espacial), ajustar la cantidad de niveles de gris (resolución radiométrica) o aplicar desenfoque " \
+                                        "por movimiento (resolución temporal). Estas opciones ayudan a analizar el efecto de la resolución " \
+                                        "en la calidad y el detalle de las imágenes.")
         resolution_title_layout.addWidget(resolution_info_icon)
         resolution_title_layout.addStretch()
 
@@ -391,7 +403,7 @@ class DICOMViewer(QMainWindow):
         spatial_title_layout.setSpacing(0)  # Sin espacio entre el texto y el ícono
         spatial_title_container.setLayout(spatial_title_layout)
 
-        spatial_title = QLabel("Opciones de Mejoramiento Espacial:")
+        spatial_title = QLabel("Opciones de Mejoramiento de Resolución Espacial:")
         spatial_title.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         spatial_title.setStyleSheet("font-weight: bold; margin-bottom: 5px;")
         spatial_title_layout.addWidget(spatial_title)
@@ -402,14 +414,19 @@ class DICOMViewer(QMainWindow):
         spatial_info_icon.setPixmap(spatial_pixmap)
         spatial_info_icon.setCursor(QCursor(Qt.PointingHandCursor))
         spatial_info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
-        spatial_info_icon.setToolTip("Estas son las opciones para mejorar espacialmente las imágenes utilizando diferentes métodos de reconstrucción.")
+        spatial_info_icon.setToolTip("Permite restaurar o mejorar la calidad de las imágenes degradadas mediante " \
+                                    "algoritmos avanzados de reconstrucción, como CLS (Constrained Least Squares), " \
+                                    "WCLS (Weighted CLS) y BMR (Bayesian Mean Restoration). Estos métodos ayudan a reducir " \
+                                    "el desenfoque y el ruido, recuperando detalles y mejorando la visualización. Puedes " \
+                                    "comparar los resultados de cada método y visualizar métricas objetivas de calidad (PSNR, " \
+                                    "IOSNR, MAE, SSIM) para cada vista.")
         spatial_title_layout.addWidget(spatial_info_icon)
         spatial_title_layout.addStretch()
 
         spatial_layout.addWidget(spatial_title_container)
 
         # Input: Ancho de la función de dispersión
-        dispersion_label = QLabel("Ancho de la función de dispersión:")
+        dispersion_label = QLabel("Ancho de la función de dispersión (pixeles):")
         self.dispersion_width_input = QDoubleSpinBox()
         self.dispersion_width_input.setRange(10.0, 100.0)
         self.dispersion_width_input.setSingleStep(10.0)
@@ -552,7 +569,11 @@ class DICOMViewer(QMainWindow):
         info_icon.setPixmap(pixmap)
         info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
         info_icon.setCursor(QCursor(Qt.PointingHandCursor))
-        info_icon.setToolTip("Estas son las opciones para transformar coordenadas en las imágenes.")
+        info_icon.setToolTip("Permite aplicar transformaciones geométricas a las imágenes, como " \
+                            "rotación, traslación, escalamiento e inclinación. Estas operaciones modifican la posición, " \
+                            "orientación o tamaño de las imágenes para facilitar su análisis, comparación o alineación. " \
+                            "Puedes ajustar los parámetros de cada transformación y visualizar el resultado en tiempo " \
+                            "real en las diferentes vistas.")
         title_layout.addWidget(info_icon)
         title_layout.addStretch()
 
@@ -739,6 +760,9 @@ class DICOMViewer(QMainWindow):
         is_frequency_selected = self.frequency_domain_rb.isChecked()
         is_spatial_selected = self.spatial_domain_rb.isChecked()
 
+        # Habilitar/deshabilitar inputs del Dominio Frecuencial
+        self.frequency_type_combo.setEnabled(is_frequency_selected)
+        self.frequency_input.setEnabled(is_frequency_selected)
         # Habilitar/deshabilitar inputs del Dominio Frecuencial
         self.frequency_type_combo.setEnabled(is_frequency_selected)
         self.frequency_input.setEnabled(is_frequency_selected)
@@ -1079,6 +1103,9 @@ class DICOMViewer(QMainWindow):
 
             self.create_vtk_widgets()
 
+            # Al cargar imágenes, habilitar Guardar y Reiniciar
+            self.set_save_and_reset_enabled(True)
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al cargar DICOM:\n{str(e)}")
             print(f"Error al cargar DICOM: {str(e)}")
@@ -1196,11 +1223,13 @@ class DICOMViewer(QMainWindow):
         self.coronal_vtk_widget.Initialize()
         self.volume_vtk.Initialize()
 
-        # Configurar estilos de interacción
-        style = vtkInteractorStyleImage()
-        self.axial_vtk_widget.GetRenderWindow().GetInteractor().SetInteractorStyle(style)
-        self.sagittal_vtk_widget.GetRenderWindow().GetInteractor().SetInteractorStyle(style)
-        self.coronal_vtk_widget.GetRenderWindow().GetInteractor().SetInteractorStyle(style)
+        # Configurar estilos de interacción (cada vista 2D debe tener su propio objeto)
+        style_axial = vtkInteractorStyleImage()
+        style_sagittal = vtkInteractorStyleImage()
+        style_coronal = vtkInteractorStyleImage()
+        self.axial_vtk_widget.GetRenderWindow().GetInteractor().SetInteractorStyle(style_axial)
+        self.sagittal_vtk_widget.GetRenderWindow().GetInteractor().SetInteractorStyle(style_sagittal)
+        self.coronal_vtk_widget.GetRenderWindow().GetInteractor().SetInteractorStyle(style_coronal)
         self.volume_vtk.GetRenderWindow().GetInteractor().SetInteractorStyle(vtk.vtkInteractorStyleTrackballCamera())
 
         self.set_fixed_vtk_widget_sizes()
@@ -1230,6 +1259,10 @@ class DICOMViewer(QMainWindow):
                 self.metrics_table.setItem(row, col, None)
 
         self.update_all_views()
+
+        # Al reiniciar, deshabilitar Guardar y Reiniciar si no hay imágenes
+        if self.images is None:
+            self.set_save_and_reset_enabled(False)
 
     def update_all_views(self):
         if self.images is None:
@@ -2329,18 +2362,16 @@ class DICOMViewer(QMainWindow):
         def calcular_metricas(original, reconstruida):
             """
             Calcula PSNR, IOSNR, MAE y SSIM entre dos imágenes.
-
-            Parámetros:
-            - original: ndarray 2D (imagen original, normalizada entre 0 y 1)
-            - reconstruida: ndarray 2D (imagen restaurada)
-
-            Retorna:
-            - ndarray de 4 elementos: [PSNR, IOSNR, MAE, SSIM]
+            Normaliza ambas imágenes al rango [0, 1] antes de calcular las métricas.
             """
-            psnr_val = peak_signal_noise_ratio(original, reconstruida, data_range=1.0)
-            iosnr_val = 10 * np.log10(np.mean(original**2) / np.mean((original - reconstruida)**2))
-            mae_val = np.mean(np.abs(original - reconstruida))
-            ssim_val = structural_similarity(original, reconstruida, data_range=1.0)
+            norm = lambda img: (img - img.min()) / (img.max() - img.min()) if img.max() != img.min() else img
+            original_norm = norm(original)
+            reconstruida_norm = norm(reconstruida)
+
+            psnr_val = peak_signal_noise_ratio(original_norm, reconstruida_norm, data_range=1.0)
+            iosnr_val = 10 * np.log10(np.mean(original_norm**2) / np.mean((original_norm - reconstruida_norm)**2))
+            mae_val = np.mean(np.abs(original_norm - reconstruida_norm))
+            ssim_val = structural_similarity(original_norm, reconstruida_norm, data_range=1.0)
 
             return np.array([psnr_val, iosnr_val, mae_val, ssim_val])
 
@@ -2451,6 +2482,7 @@ if __name__ == "__main__":
     viewer = DICOMViewer()
     viewer.show()
     sys.exit(app.exec_())
+
 
 
 
