@@ -1,14 +1,11 @@
 
-> [!NOTE]
+> [!IMPORTANT]
 > Aplicación interactiva desarrollada en Python con PyQt5 y VTK para la visualización y procesamiento de imágenes médicas en formato DICOM. Permite explorar estudios en planos axial, sagital, coronal y en 3D, e incorpora herramientas avanzadas de procesamiento como transformaciones geométricas, filtrado espacial/frecuencial, modificaciones de resolución (espacial, radiométrica y temporal) y restauración de imágenes mediante algoritmos CLS, WCLS y BMR. Diseñada como plataforma didáctica y funcional para apoyar el análisis, mejoramiento y evaluación cuantitativa de imágenes médicas mediante métricas como PSNR, IOSNR, MAE y SSIM.
 
 > <img width="680" height="917" alt="image" src="https://github.com/user-attachments/assets/2ee04242-8328-4b1c-95f1-4aa6a7384353" />
 
 
-> [!IMPORTANT]
-> Important
-
-> [!TIP]
+> [!NOTE]
 > Transformaciones de Coordenadas
 Este conjunto de herramientas aplica modificaciones geométricas a las imágenes, alterando sus propiedades espaciales.
 > •	Rotación: Gira la imagen alrededor de su centro un ángulo especificado por el usuario (en grados).
@@ -18,7 +15,7 @@ Este conjunto de herramientas aplica modificaciones geométricas a las imágenes
 
 > ![transformacion de coordenadas](https://github.com/user-attachments/assets/6fa5a6b2-dd7c-4e1e-9cd4-e66db077065b)
 
-> [!TIP]
+> [!NOTE]
 > Filtrado
 El módulo de filtrado proporciona opciones para procesar la imagen tanto en el dominio espacial como en el frecuencial, con el objetivo de reducir ruido o realzar características.
 •	Dominio Frecuencial: 
@@ -30,7 +27,7 @@ o	Filtros Pasa Altas: Implementa varios kernels para la detección de bordes, in
 
 ![FILTRADO](https://github.com/user-attachments/assets/cbba6edb-a9cd-497c-ac01-9598a67b2c71)
 
-> [!TIP]
+> [!NOTE]
 > Modificaciones de Resolución
 Este módulo ofrece herramientas para alterar las características de resolución de las imágenes, permitiendo observar cómo estos cambios afectan la calidad y la percepción visual.
 •	Resolución Espacial: Permite modificar el tamaño de la imagen mediante submuestreo o sobremuestreo. 
@@ -42,7 +39,7 @@ o	Sobremuestreo: Aumenta el número de píxeles, por ejemplo, mediante interpola
 ![MODIFICACION DE RESOLUCION](https://github.com/user-attachments/assets/36152dea-86c3-4a60-a814-d17ac787a595)
 
 
-> [!TIP]
+> [!NOTE]
 > Mejoramiento Espacial
 Este módulo está diseñado para mejorar la calidad de las imágenes que puedan estar degradadas, utilizando algoritmos de restauración.
 •	Permite aplicar métodos como Constrained Least Squares (CLS), Weighted Constrained Least Squares (WCLS) y Bayesian Mean Restoration (BMR).
@@ -56,12 +53,4 @@ o	Structural Similarity Index (SSIM)
 
 ![MEJORAMIENTO ESPACIAL](https://github.com/user-attachments/assets/4a3b8ca5-2733-4f1c-b507-9e47bc0e008f)
 
-> [!WARNING]
-> Warning
-
-> [!TIP]
-> Sucess
-
-> [!CAUTION]
-> Caution
 
