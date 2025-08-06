@@ -1,1 +1,2 @@
-<[!NOTE]  Hola
+> [!NOTE]
+> Hola
