@@ -29,7 +29,31 @@ o	Filtros Pasa Altas: Implementa varios kernels para la detección de bordes, in
 
 ![FILTRADO](https://github.com/user-attachments/assets/cbba6edb-a9cd-497c-ac01-9598a67b2c71)
 
+> [!TIP]
+> Modificaciones de Resolución
+Este módulo ofrece herramientas para alterar las características de resolución de las imágenes, permitiendo observar cómo estos cambios afectan la calidad y la percepción visual.
+•	Resolución Espacial: Permite modificar el tamaño de la imagen mediante submuestreo o sobremuestreo. 
+o	Submuestreo: Reduce el número de píxeles, lo que puede llevar a una pérdida de detalle. El usuario puede definir un porcentaje de reducción.
+o	Sobremuestreo: Aumenta el número de píxeles, por ejemplo, mediante interpolación bilineal, para agrandar la imagen. El usuario puede definir un porcentaje de aumento.
+•	Resolución Radiométrica: Ajusta el número de niveles de intensidad (profundidad de bits) de la imagen, lo que afecta el contraste y la cantidad de detalles finos visibles. El usuario puede especificar el número de bits deseado.
+•	Resolución Temporal: Simula los efectos del movimiento durante la adquisición de la imagen, introduciendo desenfoque horizontal o vertical. La intensidad del movimiento es configurable por el usuario.
 
+![MODIFICACION DE RESOLUCION](https://github.com/user-attachments/assets/36152dea-86c3-4a60-a814-d17ac787a595)
+
+
+> [!TIP]
+> Mejoramiento Espacial
+Este módulo está diseñado para mejorar la calidad de las imágenes que puedan estar degradadas, utilizando algoritmos de restauración.
+•	Permite aplicar métodos como Constrained Least Squares (CLS), Weighted Constrained Least Squares (WCLS) y Bayesian Mean Restoration (BMR).
+•	El usuario puede definir el ancho de la función de dispersión de puntos (PSF).
+•	Se muestran métricas cuantitativas para evaluar el desempeño de cada algoritmo, tales como: 
+o	Peak Signal-to-Noise Ratio (PSNR)
+o	Increment in Signal-to-Noise Ratio (IOSNR)
+o	Mean Absolute Error (MAE)
+o	Structural Similarity Index (SSIM)
+•	Los resultados de los diferentes métodos de mejoramiento, la imagen degradada y la imagen original pueden alternarse en las vistas para una comparación directa.
+
+![MEJORAMIENTO ESPACIAL](https://github.com/user-attachments/assets/4a3b8ca5-2733-4f1c-b507-9e47bc0e008f)
 
 > [!WARNING]
 > Warning
