@@ -65,5 +65,3 @@ o	Structural Similarity Index (SSIM)
 > [!CAUTION]
 > Caution
 
-> [!DANGER]
-> Danger
