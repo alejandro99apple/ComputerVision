@@ -31,17 +31,17 @@ Este conjunto de herramientas aplica modificaciones geométricas a las imágenes
 
 > [!NOTE]
 > ### Modificaciones de Resolución
-
-Este módulo ofrece herramientas para alterar las características de resolución de las imágenes, permitiendo observar cómo estos cambios afectan la calidad y la percepción visual.
-
-- **Resolución Espacial:** Permite modificar el tamaño de la imagen mediante submuestreo o sobremuestreo.
-  - *Submuestreo:* Reduce el número de píxeles, lo que puede llevar a una pérdida de detalle. El usuario puede definir un porcentaje de reducción.
-  - *Sobremuestreo:* Aumenta el número de píxeles (por ejemplo, mediante interpolación bilineal) para agrandar la imagen. El usuario puede definir un porcentaje de aumento.
-
-- **Resolución Radiométrica:** Ajusta el número de niveles de intensidad (profundidad de bits) de la imagen, lo que afecta el contraste y la cantidad de detalles finos visibles. El usuario puede especificar el número de bits deseado.
-
-- **Resolución Temporal:** Simula los efectos del movimiento durante la adquisición de la imagen, introduciendo desenfoque horizontal o vertical. La intensidad del movimiento es configurable por el usuario.
-
+> 
+> Este módulo ofrece herramientas para alterar las características de resolución de las imágenes, permitiendo observar cómo estos cambios afectan la calidad y la percepción visual.
+>
+> - **Resolución Espacial:** Permite modificar el tamaño de la imagen mediante submuestreo o sobremuestreo.  
+>   - *Submuestreo:* Reduce el número de píxeles, lo que puede llevar a una pérdida de detalle. El usuario puede definir un porcentaje de reducción.  
+>   - *Sobremuestreo:* Aumenta el número de píxeles (por ejemplo, mediante interpolación bilineal) para agrandar la imagen. El usuario puede definir un porcentaje de aumento.
+>
+> - **Resolución Radiométrica:** Ajusta el número de niveles de intensidad (profundidad de bits) de la imagen, lo que afecta el contraste y la cantidad de detalles finos visibles. El usuario puede especificar el número de bits deseado.
+>
+> - **Resolución Temporal:** Simula los efectos del movimiento durante la adquisición de la imagen, introduciendo desenfoque horizontal o vertical. La intensidad del movimiento es configurable por el usuario.
+>
 > ![MODIFICACION DE RESOLUCION](https://github.com/user-attachments/assets/36152dea-86c3-4a60-a814-d17ac787a595)
 ***
 
