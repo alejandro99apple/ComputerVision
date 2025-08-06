@@ -1,2 +1,14 @@
 > [!NOTE]
-> Hola
+> Nota
+
+> [!IMPORTANT]
+> Important
+
+> [!TIP]
+> Tip
+
+> [!WARNING]
+> Warning
+
+> [!CAUTION]
+> Caution
