@@ -4,7 +4,7 @@
 
 > <img width="680" height="917" alt="image" src="https://github.com/user-attachments/assets/2ee04242-8328-4b1c-95f1-4aa6a7384353" />
 
-
+***
 > [!NOTE]
 > Transformaciones de Coordenadas
 Este conjunto de herramientas aplica modificaciones geométricas a las imágenes, alterando sus propiedades espaciales.
