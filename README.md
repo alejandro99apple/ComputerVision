@@ -8,7 +8,13 @@
 > Important
 
 > [!TIP]
-> Tip
+> Transformaciones de Coordenadas
+Este conjunto de herramientas aplica modificaciones geométricas a las imágenes, alterando sus propiedades espaciales.
+•	Rotación: Gira la imagen alrededor de su centro un ángulo especificado por el usuario (en grados).
+•	Traslación: Desplaza la imagen horizontal y verticalmente una cantidad de píxeles definida por el usuario.
+•	Escalamiento: Modifica el tamaño de la imagen aplicando factores de escala independientes para las dimensiones horizontal y vertical.
+•	Inclinación (Shearing): Deforma la imagen aplicando un factor de inclinación en los ejes horizontal y vertical.
+
 
 > [!WARNING]
 > Warning
