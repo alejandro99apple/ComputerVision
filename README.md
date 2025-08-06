@@ -14,7 +14,10 @@ Este conjunto de herramientas aplica modificaciones geométricas a las imágenes
 •	Traslación: Desplaza la imagen horizontal y verticalmente una cantidad de píxeles definida por el usuario.
 •	Escalamiento: Modifica el tamaño de la imagen aplicando factores de escala independientes para las dimensiones horizontal y vertical.
 •	Inclinación (Shearing): Deforma la imagen aplicando un factor de inclinación en los ejes horizontal y vertical.
-> <img width="1006" height="586" alt="image" src="https://github.com/user-attachments/assets/ad066311-cb58-4ea7-a78d-b8afa232404e" />
+
+> ![transformacion de coordenadas](https://github.com/user-attachments/assets/6fa5a6b2-dd7c-4e1e-9cd4-e66db077065b)
+
+
 
 
 
