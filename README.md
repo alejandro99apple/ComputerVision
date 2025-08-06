@@ -27,6 +27,7 @@ o	Filtros Pasa Altas: Atenúan las bajas frecuencias para realzar bordes y detal
 o	Filtros Pasa Bajas: Aplica un filtro de media con un tamaño de kernel configurable por el usuario para suavizar la imagen. Se puede ajustar un factor de ruido.
 o	Filtros Pasa Altas: Implementa varios kernels para la detección de bordes, incluyendo diferentes variaciones de Sobel, Prewitt y Laplace. Se puede ajustar un factor de borde.
 
+![FILTRADO](https://github.com/user-attachments/assets/cbba6edb-a9cd-497c-ac01-9598a67b2c71)
 
 
 
