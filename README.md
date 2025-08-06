@@ -19,7 +19,7 @@
 ***
 
 > [!NOTE]
-> **Filtrado**  
+> ###  Filtrado
 > El módulo de filtrado proporciona opciones para procesar la imagen tanto en el dominio espacial como en el frecuencial, con el objetivo de reducir ruido o realzar características.
 > 
 > - **Dominio Frecuencial:**  
