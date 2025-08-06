@@ -14,6 +14,7 @@ Este conjunto de herramientas aplica modificaciones geométricas a las imágenes
 > •	Inclinación (Shearing): Deforma la imagen aplicando un factor de inclinación en los ejes horizontal y vertical.
 
 > ![transformacion de coordenadas](https://github.com/user-attachments/assets/6fa5a6b2-dd7c-4e1e-9cd4-e66db077065b)
+***
 
 > [!NOTE]
 > Filtrado
@@ -26,6 +27,7 @@ o	Filtros Pasa Bajas: Aplica un filtro de media con un tamaño de kernel configu
 o	Filtros Pasa Altas: Implementa varios kernels para la detección de bordes, incluyendo diferentes variaciones de Sobel, Prewitt y Laplace. Se puede ajustar un factor de borde.
 
 ![FILTRADO](https://github.com/user-attachments/assets/cbba6edb-a9cd-497c-ac01-9598a67b2c71)
+***
 
 > [!NOTE]
 > Modificaciones de Resolución
@@ -37,7 +39,7 @@ o	Sobremuestreo: Aumenta el número de píxeles, por ejemplo, mediante interpola
 •	Resolución Temporal: Simula los efectos del movimiento durante la adquisición de la imagen, introduciendo desenfoque horizontal o vertical. La intensidad del movimiento es configurable por el usuario.
 
 ![MODIFICACION DE RESOLUCION](https://github.com/user-attachments/assets/36152dea-86c3-4a60-a814-d17ac787a595)
-
+***
 
 > [!NOTE]
 > Mejoramiento Espacial
