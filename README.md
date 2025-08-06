@@ -58,17 +58,18 @@
 ***
 
 > [!NOTE]
-> Mejoramiento Espacial
-Este módulo está diseñado para mejorar la calidad de las imágenes que puedan estar degradadas, utilizando algoritmos de restauración.
-•	Permite aplicar métodos como Constrained Least Squares (CLS), Weighted Constrained Least Squares (WCLS) y Bayesian Mean Restoration (BMR).
-•	El usuario puede definir el ancho de la función de dispersión de puntos (PSF).
-•	Se muestran métricas cuantitativas para evaluar el desempeño de cada algoritmo, tales como: 
-o	Peak Signal-to-Noise Ratio (PSNR)
-o	Increment in Signal-to-Noise Ratio (IOSNR)
-o	Mean Absolute Error (MAE)
-o	Structural Similarity Index (SSIM)
-•	Los resultados de los diferentes métodos de mejoramiento, la imagen degradada y la imagen original pueden alternarse en las vistas para una comparación directa.
-
+> ### Mejoramiento Espacial
+> Este módulo está diseñado para mejorar la calidad de las imágenes que puedan estar degradadas, utilizando algoritmos de restauración.
+> 
+> - Permite aplicar métodos como Constrained Least Squares (CLS), Weighted Constrained Least Squares (WCLS) y Bayesian Mean Restoration (BMR).
+> - El usuario puede definir el ancho de la función de dispersión de puntos (PSF).
+> - Se muestran métricas cuantitativas para evaluar el desempeño de cada algoritmo, tales como:  
+>   - Peak Signal-to-Noise Ratio (PSNR)  
+>   - Increment in Signal-to-Noise Ratio (IOSNR)  
+>   - Mean Absolute Error (MAE)  
+>   - Structural Similarity Index (SSIM)
+> - Los resultados de los diferentes métodos de mejoramiento, la imagen degradada y la imagen original pueden alternarse en las vistas para una comparación directa.
+> 
 > ![MEJORAMIENTO ESPACIAL](https://github.com/user-attachments/assets/4a3b8ca5-2733-4f1c-b507-9e47bc0e008f)
 
 
