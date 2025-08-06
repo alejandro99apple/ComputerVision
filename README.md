@@ -1,6 +1,6 @@
 
 > [!NOTE]
-> La interfaz gráfica de usuario desarrollada ofrece una plataforma integral para la visualización interactiva de imágenes médicas DICOM, presentando cortes en los planos axial, sagital y coronal, además de una vista tridimensional del volumen de datos. Una barra de herramientas lateral organiza las funcionalidades de procesamiento de imágenes en cuatro categorías principales: modificaciones de resolución, transformaciones de coordenadas, filtrado y mejoramiento espacial.
+> Aplicación interactiva desarrollada en Python con PyQt5 y VTK para la visualización y procesamiento de imágenes médicas en formato DICOM. Permite explorar estudios en planos axial, sagital, coronal y en 3D, e incorpora herramientas avanzadas de procesamiento como transformaciones geométricas, filtrado espacial/frecuencial, modificaciones de resolución (espacial, radiométrica y temporal) y restauración de imágenes mediante algoritmos CLS, WCLS y BMR. Diseñada como plataforma didáctica y funcional para apoyar el análisis, mejoramiento y evaluación cuantitativa de imágenes médicas mediante métricas como PSNR, IOSNR, MAE y SSIM.
 
 > <img width="680" height="917" alt="image" src="https://github.com/user-attachments/assets/2ee04242-8328-4b1c-95f1-4aa6a7384353" />
 
