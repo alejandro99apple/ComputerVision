@@ -18,13 +18,13 @@ Este conjunto de herramientas aplica modificaciones geométricas a las imágenes
 
 > [!NOTE]
 > Filtrado
-El módulo de filtrado proporciona opciones para procesar la imagen tanto en el dominio espacial como en el frecuencial, con el objetivo de reducir ruido o realzar características.
-•	Dominio Frecuencial: 
-o	Filtros Pasa Bajas: Atenúan las altas frecuencias para suavizar la imagen y reducir el ruido. Se pueden seleccionar diferentes tipos de ventanas (Gaussiana, Coseno, Bartlett, Hanning, Gaussiana Modificada, Rectangular) y ajustar la dimensión del radio y un factor de ruido.
-o	Filtros Pasa Altas: Atenúan las bajas frecuencias para realzar bordes y detalles finos. Utiliza los mismos tipos de ventanas y permite ajustar la dimensión del radio y un factor de borde.
-•	Dominio Espacial: 
-o	Filtros Pasa Bajas: Aplica un filtro de media con un tamaño de kernel configurable por el usuario para suavizar la imagen. Se puede ajustar un factor de ruido.
-o	Filtros Pasa Altas: Implementa varios kernels para la detección de bordes, incluyendo diferentes variaciones de Sobel, Prewitt y Laplace. Se puede ajustar un factor de borde.
+  El módulo de filtrado proporciona opciones para procesar la imagen tanto en el dominio espacial como en el frecuencial, con el objetivo de reducir ruido o realzar características.
+  •	Dominio Frecuencial: 
+  o	Filtros Pasa Bajas: Atenúan las altas frecuencias para suavizar la imagen y reducir el ruido. Se pueden seleccionar diferentes tipos de ventanas (Gaussiana, Coseno, Bartlett, Hanning, Gaussiana Modificada, Rectangular) y ajustar la dimensión del radio y un factor de   ruido.
+  o	Filtros Pasa Altas: Atenúan las bajas frecuencias para realzar bordes y detalles finos. Utiliza los mismos tipos de ventanas y permite ajustar la dimensión del radio y un factor de borde.
+  •	Dominio Espacial: 
+  o	Filtros Pasa Bajas: Aplica un filtro de media con un tamaño de kernel configurable por el usuario para suavizar la imagen. Se puede ajustar un factor de ruido.
+  o	Filtros Pasa Altas: Implementa varios kernels para la detección de bordes, incluyendo diferentes variaciones de Sobel, Prewitt y Laplace. Se puede ajustar un factor de borde.
 
 > ![FILTRADO](https://github.com/user-attachments/assets/cbba6edb-a9cd-497c-ac01-9598a67b2c71)
 ***
