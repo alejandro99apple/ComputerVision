@@ -59,7 +59,7 @@ o	Structural Similarity Index (SSIM)
 > [!WARNING]
 > Warning
 
-> [!DANGER]
+> [!TIP]
 > Sucess
 
 > [!CAUTION]
