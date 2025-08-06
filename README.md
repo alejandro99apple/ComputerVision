@@ -38,7 +38,7 @@ o	Sobremuestreo: Aumenta el número de píxeles, por ejemplo, mediante interpola
 •	Resolución Radiométrica: Ajusta el número de niveles de intensidad (profundidad de bits) de la imagen, lo que afecta el contraste y la cantidad de detalles finos visibles. El usuario puede especificar el número de bits deseado.
 •	Resolución Temporal: Simula los efectos del movimiento durante la adquisición de la imagen, introduciendo desenfoque horizontal o vertical. La intensidad del movimiento es configurable por el usuario.
 
-![MODIFICACION DE RESOLUCION](https://github.com/user-attachments/assets/36152dea-86c3-4a60-a814-d17ac787a595)
+> ![MODIFICACION DE RESOLUCION](https://github.com/user-attachments/assets/36152dea-86c3-4a60-a814-d17ac787a595)
 ***
 
 > [!NOTE]
@@ -53,6 +53,6 @@ o	Mean Absolute Error (MAE)
 o	Structural Similarity Index (SSIM)
 •	Los resultados de los diferentes métodos de mejoramiento, la imagen degradada y la imagen original pueden alternarse en las vistas para una comparación directa.
 
-![MEJORAMIENTO ESPACIAL](https://github.com/user-attachments/assets/4a3b8ca5-2733-4f1c-b507-9e47bc0e008f)
+> ![MEJORAMIENTO ESPACIAL](https://github.com/user-attachments/assets/4a3b8ca5-2733-4f1c-b507-9e47bc0e008f)
 
 
