@@ -1,6 +1,7 @@
 from scipy.linalg import toeplitz
 import sys
 import numpy as np
+import os
 import cv2
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                             QHBoxLayout, QGridLayout, QPushButton, QLabel, 
@@ -22,12 +23,21 @@ from vtkmodules.vtkInteractionStyle import vtkInteractorStyleImage
 from vtkmodules.vtkRenderingVolume import vtkFixedPointVolumeRayCastMapper
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 class DICOMViewer(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("DICOM 4-View Visualizer")
-        self.setWindowIcon(QIcon('icono.ico'))
+        path = resource_path('icono.ico')
+        self.setWindowIcon(QIcon(path))
         self.setGeometry(150, 100, 1600, 900)
 
         self.images = None
@@ -73,6 +83,8 @@ class DICOMViewer(QMainWindow):
 
         # Conectar señales después de que todos los widgets han sido creados
         self.resolution_options.buttonClicked.connect(self.update_resolution_controls)
+
+
 
     def set_save_and_reset_enabled(self, enabled):
         self.reset_btn.setEnabled(enabled)
@@ -253,7 +265,7 @@ class DICOMViewer(QMainWindow):
 
         # Crear el icono de información tipo tooltip con SVG para filtrado
         filter_info_icon = QLabel()
-        filter_pixmap = QPixmap("icon.svg").scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        filter_pixmap = QPixmap(resource_path("icon.svg")).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         filter_info_icon.setPixmap(filter_pixmap)
         filter_info_icon.setCursor(QCursor(Qt.PointingHandCursor))
         filter_info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
@@ -327,7 +339,7 @@ class DICOMViewer(QMainWindow):
 
         # Crear el icono de información tipo tooltip con SVG para resolución
         resolution_info_icon = QLabel()
-        resolution_pixmap = QPixmap("icon.svg").scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        resolution_pixmap = QPixmap(resource_path("icon.svg")).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         resolution_info_icon.setPixmap(resolution_pixmap)
         resolution_info_icon.setCursor(QCursor(Qt.PointingHandCursor))
         resolution_info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
@@ -410,7 +422,7 @@ class DICOMViewer(QMainWindow):
 
         # Crear el icono de información tipo tooltip con SVG para mejoramiento espacial
         spatial_info_icon = QLabel()
-        spatial_pixmap = QPixmap("icon.svg").scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        spatial_pixmap = QPixmap(resource_path("icon.svg")).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         spatial_info_icon.setPixmap(spatial_pixmap)
         spatial_info_icon.setCursor(QCursor(Qt.PointingHandCursor))
         spatial_info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
@@ -565,7 +577,7 @@ class DICOMViewer(QMainWindow):
 
         # Crear el icono de información tipo tooltip con SVG
         info_icon = QLabel()
-        pixmap = QPixmap("icon.svg").scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = QPixmap(resource_path("icon.svg")).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         info_icon.setPixmap(pixmap)
         info_icon.setStyleSheet("margin-bottom: 5px;")  # Espacio entre el título y el icono
         info_icon.setCursor(QCursor(Qt.PointingHandCursor))
@@ -646,7 +658,7 @@ class DICOMViewer(QMainWindow):
         # Segunda fila: Ventana y Dimensión del radio
         row2_layout = QHBoxLayout()
         self.frequency_window_combo = QComboBox()
-        self.frequency_window_combo.addItems(["Gaussiana","Gaussiana Mod", "Coseno", "Barlett", "Hanning"])
+        self.frequency_window_combo.addItems(["Gaussiana","Gaussiana Mod", "Coseno", "Barlett", "Hanning", "Rectangular"])
         self.frequency_window_combo.setEnabled(False)
         row2_layout.addWidget(QLabel("Ventana:"))
         row2_layout.addWidget(self.frequency_window_combo)
@@ -720,7 +732,7 @@ class DICOMViewer(QMainWindow):
         row2_layout.addWidget(self.spatial_window_combo)
 
         self.kernel_size_input = QSpinBox()
-        self.kernel_size_input.setRange(3, 7)
+        self.kernel_size_input.setRange(3, 15)
         self.kernel_size_input.setValue(3)
         self.kernel_size_input.setSingleStep(2)  # Solo valores impares
         self.kernel_size_input.setEnabled(False)  # Solo habilitado para Pasa Bajas
@@ -1408,7 +1420,7 @@ class DICOMViewer(QMainWindow):
         slice_img = slice_img.T
         slice_img = np.rot90(slice_img, k=1, axes=(0, 1))
         # Redimensionar para mantener relación de aspecto
-        slice_img = cv2.resize(slice_img, (512, 512), interpolation=cv2.INTER_LANCZOS4)
+        slice_img = cv2.resize(slice_img, (self.dims[0]-1, self.dims[1]-1), interpolation=cv2.INTER_LANCZOS4)
         return slice_img
 
     def prepare_coronal_slice(self, slice_img):
@@ -1806,7 +1818,7 @@ class DICOMViewer(QMainWindow):
         
         # Controles
         self.bits_input = QSpinBox()
-        self.bits_input.setRange(1, 16)
+        self.bits_input.setRange(0, 8)
         self.bits_input.setValue(8)
         self.bits_input.setEnabled(False)
         
@@ -2137,6 +2149,9 @@ class DICOMViewer(QMainWindow):
                             H[h, k] = 0.5 * (np.cos((np.pi * dxy) / sigma) + 1)
                     elif filter_name == "Gaussiana":
                         H[h, k] = np.exp(-(dxy**2) / (2 * sigma**2))
+                    elif filter_name == "Rectangular":
+                        if dxy < sigma:
+                            H[h, k] = 1
                     else:
                         raise ValueError(f"Filtro '{filter_name}' no reconocido.")
 
